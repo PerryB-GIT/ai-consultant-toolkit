@@ -72,11 +72,15 @@ export default function FileUpload({ onUpload }: FileUploadProps) {
         body: JSON.stringify(data),
       });
 
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
-
       const result = await response.json();
+
+      if (!response.ok) {
+        // Show detailed validation errors
+        const errorDetails = result.details
+          ? result.details.map((d: any) => `${d.path.join('.')}: ${d.message}`).join('\n')
+          : result.error || 'Unknown error';
+        throw new Error(`Validation failed:\n${errorDetails}`);
+      }
 
       // Call callback if provided
       if (onUpload) {
