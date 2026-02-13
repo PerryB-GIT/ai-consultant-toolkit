@@ -1,0 +1,54 @@
+{
+  "os": "Windows 10 Pro 10.0.19045",
+  "architecture": "x64",
+  "timestamp": "2026-02-13T20:45:12Z",
+  "results": {
+    "chocolatey": {
+      "status": "OK",
+      "version": "2.2.2",
+      "installed": false
+    },
+    "git": {
+      "status": "OK",
+      "version": "2.40.1",
+      "installed": false
+    },
+    "github_cli": {
+      "status": "OK",
+      "version": "2.38.0",
+      "installed": false
+    },
+    "nodejs": {
+      "status": "OK",
+      "version": "16.14.0",
+      "installed": false
+    },
+    "python": {
+      "status": "OK",
+      "version": "3.10.5",
+      "installed": false
+    },
+    "wsl2": {
+      "status": "ERROR",
+      "version": null,
+      "installed": false,
+      "restart_required": true
+    },
+    "claude": {
+      "status": "ERROR",
+      "version": null,
+      "installed": false
+    },
+    "docker": {
+      "status": "ERROR",
+      "version": null,
+      "installed": false
+    }
+  },
+  "errors": [
+    "WSL2 installation failed: Feature is not enabled",
+    "Claude CLI installation failed: npm ERR! code EACCES",
+    "Docker Desktop requires WSL2 to be installed first"
+  ],
+  "duration_seconds": 234.67
+}

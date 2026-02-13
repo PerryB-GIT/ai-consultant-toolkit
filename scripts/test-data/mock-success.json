@@ -1,0 +1,50 @@
+{
+  "os": "Windows 11 Pro 10.0.22631",
+  "architecture": "x64",
+  "timestamp": "2026-02-13T18:30:45Z",
+  "results": {
+    "chocolatey": {
+      "status": "OK",
+      "version": "2.3.0",
+      "installed": false
+    },
+    "git": {
+      "status": "OK",
+      "version": "2.43.0",
+      "installed": false
+    },
+    "github_cli": {
+      "status": "OK",
+      "version": "2.42.0",
+      "installed": false
+    },
+    "nodejs": {
+      "status": "OK",
+      "version": "20.11.0",
+      "installed": false
+    },
+    "python": {
+      "status": "OK",
+      "version": "3.11.8",
+      "installed": false
+    },
+    "wsl2": {
+      "status": "OK",
+      "version": "2.0.0",
+      "installed": false,
+      "restart_required": false
+    },
+    "claude": {
+      "status": "OK",
+      "version": "2.1.0",
+      "installed": true
+    },
+    "docker": {
+      "status": "OK",
+      "version": "25.0.3",
+      "installed": false
+    }
+  },
+  "errors": [],
+  "duration_seconds": 145.32
+}
