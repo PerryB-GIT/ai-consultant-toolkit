@@ -25,7 +25,7 @@ export default function Home() {
         {/* Progress Overview */}
         <div className="mb-12">
           <h2 className="text-2xl font-bold mb-4">Setup Progress</h2>
-          <ProgressBar currentStep={1} totalSteps={11} />
+          <ProgressBar currentStep={1} completedSteps={[]} totalSteps={11} />
         </div>
 
         {/* Upload Section */}
