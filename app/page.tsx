@@ -93,17 +93,17 @@ export default function Home() {
             <div>
               <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center font-bold mb-2">1</div>
               <p className="font-medium text-white mb-1">Validation</p>
-              <p>We'll check that all required tools are installed and properly configured.</p>
+              <p>We&apos;ll check that all required tools are installed and properly configured.</p>
             </div>
             <div>
               <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center font-bold mb-2">2</div>
               <p className="font-medium text-white mb-1">Troubleshooting</p>
-              <p>If any issues are found, we'll provide specific fix instructions.</p>
+              <p>If any issues are found, we&apos;ll provide specific fix instructions.</p>
             </div>
             <div>
               <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center font-bold mb-2">3</div>
               <p className="font-medium text-white mb-1">Next Steps</p>
-              <p>Once validated, we'll guide you through cloud setup and building your first AI employee.</p>
+              <p>Once validated, we&apos;ll guide you through cloud setup and building your first AI employee.</p>
             </div>
           </div>
         </div>
