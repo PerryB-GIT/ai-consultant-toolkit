@@ -1,0 +1,44 @@
+{
+  "os": "macOS 14.2 (Apple Silicon)",
+  "architecture": "arm64",
+  "timestamp": "2026-02-13T20:30:45Z",
+  "results": {
+    "homebrew": {
+      "status": "OK",
+      "version": "5.0.13",
+      "installed": false
+    },
+    "git": {
+      "status": "OK",
+      "version": "2.52.0",
+      "installed": false
+    },
+    "github_cli": {
+      "status": "OK",
+      "version": "2.86.0",
+      "installed": true
+    },
+    "nodejs": {
+      "status": "OK",
+      "version": "22.1.0",
+      "installed": true
+    },
+    "python": {
+      "status": "OK",
+      "version": "3.12.12",
+      "installed": true
+    },
+    "claude": {
+      "status": "OK",
+      "version": "2.1.37",
+      "installed": true
+    },
+    "docker": {
+      "status": "skipped",
+      "version": null,
+      "installed": false
+    }
+  },
+  "errors": [],
+  "duration_seconds": 420
+}

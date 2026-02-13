@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-background text-white antialiased;
+  }
+}
+
+/* Custom scrollbar styles */
+@layer utilities {
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    @apply bg-gray-900 rounded;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply bg-gray-700 rounded hover:bg-gray-600;
+  }
+
+  .scrollbar-track-gray-900::-webkit-scrollbar-track {
+    @apply bg-gray-900;
+  }
+
+  .scrollbar-thumb-gray-700::-webkit-scrollbar-thumb {
+    @apply bg-gray-700;
+  }
+}
