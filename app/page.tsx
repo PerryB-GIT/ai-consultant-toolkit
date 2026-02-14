@@ -115,12 +115,19 @@ export default function Home() {
               <li className="flex items-start gap-2">
                 <span className="text-primary font-medium">3.</span>
                 <div>
+                  <div className="font-medium text-white mb-1">Wait for completion</div>
+                  <div className="text-gray-400">Script will install tools and generate results file. This may take 5-10 minutes.</div>
+                </div>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-primary font-medium">4.</span>
+                <div>
                   <div className="font-medium text-white mb-1">Find the results file</div>
                   <div>Look for <code className="px-1 py-0.5 bg-gray-800 rounded text-xs">~/setup-results.json</code> in your home folder</div>
                 </div>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-primary font-medium">4.</span>
+                <span className="text-primary font-medium">5.</span>
                 <div>
                   <div className="font-medium text-white mb-1">Upload it above</div>
                   <div>Drag the file to the upload area</div>
@@ -156,12 +163,19 @@ export default function Home() {
               <li className="flex items-start gap-2">
                 <span className="text-primary font-medium">3.</span>
                 <div>
+                  <div className="font-medium text-white mb-1">If restart required (WSL2)</div>
+                  <div className="text-gray-400">Script will prompt you to restart. After reboot, run the script again to complete setup and generate results file.</div>
+                </div>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-primary font-medium">4.</span>
+                <div>
                   <div className="font-medium text-white mb-1">Find the results file</div>
                   <div>Look for <code className="px-1 py-0.5 bg-gray-800 rounded text-xs">C:\Users\YourName\setup-results.json</code></div>
                 </div>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-primary font-medium">4.</span>
+                <span className="text-primary font-medium">5.</span>
                 <div>
                   <div className="font-medium text-white mb-1">Upload it above</div>
                   <div>Drag the file to the upload area</div>
