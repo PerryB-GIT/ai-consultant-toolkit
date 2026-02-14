@@ -11,17 +11,17 @@ export interface ProgressBarProps {
 }
 
 const DEFAULT_STEP_LABELS = [
-  'Prerequisites',
-  'OS Detection',
-  'Installing Tools',
-  'CLI Authentication',
-  'Security Setup',
-  'MCP Configuration',
-  'Google Services',
-  'Voice Assistant',
-  'Testing Setup',
-  'Documentation',
-  'Complete',
+  'Download Setup Script',
+  'Run Phase 1 Setup',
+  'Upload & Validate',
+  'Authenticate (gh + claude)',
+  'Download Phase 2 Script',
+  'Install Skills & MCPs',
+  'Configure EA Persona',
+  'Authenticate Google Services',
+  'Test EA & Workflows',
+  'Build Custom Skills',
+  'Production Ready',
 ];
 
 export default function ProgressBar({
