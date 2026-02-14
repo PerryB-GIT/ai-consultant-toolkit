@@ -198,8 +198,13 @@ if (Get-Command claude -ErrorAction SilentlyContinue) {
         if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
             throw 'npm not found. Ensure Node.js is installed.'
         }
-        npm install -g @anthropic-ai/claude-code 2>&1 | Out-Null
+        Write-Info 'Running: npm install -g @anthropic-ai/claude-code'
+        $npmOutput = npm install -g @anthropic-ai/claude-code 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            throw "npm install failed with exit code $LASTEXITCODE"
+        }
         Refresh-EnvironmentPath
+        Start-Sleep -Seconds 2
         $version = Get-InstalledVersion -Command 'claude'
         if ($version) {
             Write-Success "Claude Code installed ($version)"
