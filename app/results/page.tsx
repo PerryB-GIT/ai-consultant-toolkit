@@ -5,26 +5,44 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import ProgressBar from '@/components/ProgressBar';
 
-interface ToolResult {
-  status: 'OK' | 'ERROR' | 'SKIPPED';
-  version?: string;
-  message?: string;
-}
-
-interface ValidationResult {
+interface Phase1Validation {
+  phase: 'Phase 1: Tool Installation';
   valid: boolean;
-  os: string;
-  timestamp: string;
-  tools: Record<string, ToolResult>;
+  summary: string;
+  stats: {
+    ok: number;
+    error: number;
+    skipped: number;
+    total: number;
+  };
   issues: string[];
   recommendations: string[];
-  stats: {
-    total: number;
-    ok: number;
-    errors: number;
-    skipped: number;
-  };
+  os: string;
+  duration: number;
 }
+
+interface Phase2Validation {
+  phase: 'Phase 2: Configuration & MCP Setup';
+  valid: boolean;
+  summary: string;
+  stats: {
+    skills: number;
+    configured: number;
+    mcps_pending: number;
+    total: number;
+  };
+  skills: string[];
+  configuration: {
+    ea_persona: boolean;
+    claude_md: boolean;
+  };
+  mcps: string[];
+  issues: string[];
+  recommendations: string[];
+  duration: number;
+}
+
+type ValidationResult = Phase1Validation | Phase2Validation;
 
 export default function ResultsPage() {
   const [result, setResult] = useState<ValidationResult | null>(null);
@@ -32,12 +50,10 @@ export default function ResultsPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Load validation results from sessionStorage
     const validationResult = sessionStorage.getItem('validationResult');
     const setupDataStr = sessionStorage.getItem('setupData');
 
     if (!validationResult) {
-      // No results available, redirect back to home
       router.push('/');
       return;
     }
@@ -61,6 +77,7 @@ export default function ResultsPage() {
     );
   }
 
+  const isPhase1 = result.phase.includes('Phase 1');
   const statusColor = result.valid ? 'text-green-400' : 'text-red-400';
   const statusIcon = result.valid ? '✓' : '✗';
   const statusText = result.valid ? 'Setup Complete' : 'Issues Found';
@@ -73,9 +90,7 @@ export default function ResultsPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-white">Validation Results</h1>
-              <p className="mt-1 text-sm text-gray-400">
-                {result.os} • {new Date(result.timestamp).toLocaleString()}
-              </p>
+              <p className="mt-1 text-sm text-gray-400">{result.phase}</p>
             </div>
             <Link
               href="/"
@@ -91,8 +106,8 @@ export default function ResultsPage() {
         {/* Progress Overview */}
         <div className="mb-8">
           <ProgressBar
-            currentStep={result.valid ? 4 : 1}
-            completedSteps={result.valid ? [1, 2, 3] : []}
+            currentStep={isPhase1 ? (result.valid ? 4 : 1) : (result.valid ? 8 : 5)}
+            completedSteps={isPhase1 ? (result.valid ? [1, 2, 3] : []) : (result.valid ? [1, 2, 3, 4, 5, 6, 7] : [1, 2, 3, 4])}
             totalSteps={11}
           />
         </div>
@@ -113,38 +128,24 @@ export default function ResultsPage() {
               <h2 className={`text-2xl font-bold ${statusColor} mb-2`}>
                 {statusText}
               </h2>
-              <p className="text-gray-300">
+              <p className="text-xl text-gray-300 mb-2">{result.summary}</p>
+              <p className="text-gray-400">
                 {result.valid
-                  ? 'All required tools are installed and configured correctly.'
-                  : 'Some tools are missing or have issues that need attention.'}
+                  ? isPhase1
+                    ? 'All required tools are installed. Ready for Phase 2!'
+                    : 'EA persona configured. Complete MCP authentication to unlock full functionality.'
+                  : 'Some items need attention before proceeding.'}
               </p>
             </div>
           </div>
         </div>
 
         {/* Stats Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <StatCard
-            label="Total Tools"
-            value={result.stats.total}
-            color="text-gray-400"
-          />
-          <StatCard
-            label="Installed"
-            value={result.stats.ok}
-            color="text-green-400"
-          />
-          <StatCard
-            label="Errors"
-            value={result.stats.errors}
-            color="text-red-400"
-          />
-          <StatCard
-            label="Skipped"
-            value={result.stats.skipped}
-            color="text-yellow-400"
-          />
-        </div>
+        {isPhase1 ? (
+          <Phase1Stats stats={(result as Phase1Validation).stats} os={(result as Phase1Validation).os} duration={result.duration} />
+        ) : (
+          <Phase2Stats result={result as Phase2Validation} />
+        )}
 
         {/* Issues */}
         {result.issues.length > 0 && (
@@ -173,7 +174,7 @@ export default function ResultsPage() {
               <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
               </svg>
-              Recommendations
+              Next Steps
             </h3>
             <ul className="space-y-2">
               {result.recommendations.map((rec, i) => (
@@ -186,202 +187,218 @@ export default function ResultsPage() {
           </div>
         )}
 
-        {/* Tool Details */}
-        <div className="bg-background-card rounded-lg border border-gray-800 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-800">
-            <h3 className="text-xl font-semibold text-white">Tool Details</h3>
-          </div>
-          <div className="divide-y divide-gray-800">
-            {Object.entries(result.tools).map(([tool, details]) => (
-              <ToolRow key={tool} name={tool} details={details} />
-            ))}
-          </div>
-        </div>
-
-        {/* Phase 2 Section - Only show if Phase 1 is valid */}
-        {result.valid && (
-          <div className="mt-8 p-8 bg-gradient-to-br from-primary/20 to-purple-900/20 border-2 border-primary rounded-xl">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center">
-                <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-white">Ready for Phase 2!</h2>
-                <p className="text-gray-300">Install skills, configure your AI Executive Assistant, and build custom workflows</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-              <div className="bg-background-card/50 backdrop-blur p-4 rounded-lg border border-gray-700">
-                <div className="text-primary font-bold mb-2">5 Essential Skills</div>
-                <ul className="text-sm text-gray-300 space-y-1">
-                  <li>• Superpowers (debugging, planning)</li>
-                  <li>• Document creation (PDF, DOCX)</li>
-                  <li>• Browser automation</li>
-                  <li>• Episodic memory</li>
-                  <li>• Executive Assistant (EA/Evie)</li>
-                </ul>
-              </div>
-
-              <div className="bg-background-card/50 backdrop-blur p-4 rounded-lg border border-gray-700">
-                <div className="text-primary font-bold mb-2">4 MCP Servers</div>
-                <ul className="text-sm text-gray-300 space-y-1">
-                  <li>• Gmail (with attachments)</li>
-                  <li>• Google Calendar</li>
-                  <li>• Google Drive</li>
-                  <li>• GitHub integration</li>
-                </ul>
-              </div>
-
-              <div className="bg-background-card/50 backdrop-blur p-4 rounded-lg border border-gray-700">
-                <div className="text-primary font-bold mb-2">EA Configuration</div>
-                <ul className="text-sm text-gray-300 space-y-1">
-                  <li>• Morning briefings</li>
-                  <li>• Email triage automation</li>
-                  <li>• Proactive task management</li>
-                  <li>• Cross-session memory</li>
-                </ul>
-              </div>
-            </div>
-
-            {/* Download Buttons */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              <a
-                href="https://raw.githubusercontent.com/PerryB-GIT/ai-consultant-toolkit/main/scripts/mac/setup-phase2.sh"
-                download
-                className="flex items-center justify-between p-4 bg-background-card border border-primary rounded-lg hover:bg-background-card/80 transition-colors group"
-              >
-                <div className="flex items-center gap-3">
-                  <svg className="w-8 h-8 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
-                  </svg>
-                  <div>
-                    <div className="font-medium text-white">Download Phase 2 for macOS</div>
-                    <div className="text-sm text-gray-400">setup-phase2.sh</div>
-                  </div>
-                </div>
-                <svg className="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-              </a>
-
-              <a
-                href="https://raw.githubusercontent.com/PerryB-GIT/ai-consultant-toolkit/main/scripts/windows/setup-phase2.ps1"
-                download
-                className="flex items-center justify-between p-4 bg-background-card border border-primary rounded-lg hover:bg-background-card/80 transition-colors group"
-              >
-                <div className="flex items-center gap-3">
-                  <svg className="w-8 h-8 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                  <div>
-                    <div className="font-medium text-white">Download Phase 2 for Windows</div>
-                    <div className="text-sm text-gray-400">setup-phase2.ps1</div>
-                  </div>
-                </div>
-                <svg className="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-              </a>
-            </div>
-
-            {/* Guides */}
-            <div className="bg-background-card/50 backdrop-blur p-4 rounded-lg border border-gray-700">
-              <h4 className="font-semibold text-white mb-3">📚 Comprehensive Guides Available</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <a
-                  href="https://github.com/PerryB-GIT/ai-consultant-toolkit/blob/main/guides/EA-CONFIGURATION-GUIDE.md"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-sm text-primary hover:text-primary-light transition-colors"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  EA Configuration Guide
-                </a>
-                <a
-                  href="https://github.com/PerryB-GIT/ai-consultant-toolkit/blob/main/guides/CUSTOM-SKILLS-WALKTHROUGH.md"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-sm text-primary hover:text-primary-light transition-colors"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                  </svg>
-                  Custom Skills Walkthrough
-                </a>
-              </div>
-            </div>
-          </div>
+        {/* Phase-specific content */}
+        {isPhase1 && result.valid && (
+          <Phase2Promotion />
         )}
 
-        {/* Next Steps */}
-        <div className="mt-8 p-6 bg-primary/10 border border-primary rounded-lg">
-          <h3 className="text-xl font-semibold text-white mb-4">
-            {result.valid ? 'Phase 1 Complete - Authentication Steps' : 'Fix Issues & Re-validate'}
-          </h3>
-          <ol className="space-y-3">
-            {result.valid ? (
-              <>
-                <li className="flex items-start gap-3">
-                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-sm font-medium">
-                    1
-                  </span>
-                  <span className="text-gray-300">
-                    Authenticate GitHub CLI: <code className="px-2 py-1 bg-gray-800 rounded text-primary">gh auth login</code>
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-sm font-medium">
-                    2
-                  </span>
-                  <span className="text-gray-300">
-                    Authenticate Claude Code: <code className="px-2 py-1 bg-gray-800 rounded text-primary">claude auth</code>
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-sm font-medium">
-                    3
-                  </span>
-                  <span className="text-gray-300">
-                    Download and run Phase 2 setup script (above) to install skills and MCP servers
-                  </span>
-                </li>
-              </>
-            ) : (
-              <>
-                <li className="flex items-start gap-3">
-                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-red-700 text-white flex items-center justify-center text-sm font-medium">
-                    1
-                  </span>
-                  <span className="text-gray-300">
-                    Fix the issues listed above
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-red-700 text-white flex items-center justify-center text-sm font-medium">
-                    2
-                  </span>
-                  <span className="text-gray-300">
-                    Re-run the setup script to validate
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-red-700 text-white flex items-center justify-center text-sm font-medium">
-                    3
-                  </span>
-                  <span className="text-gray-300">
-                    Upload the new <code className="px-2 py-1 bg-gray-800 rounded text-red-400">setup-results.json</code> file
-                  </span>
-                </li>
-              </>
-            )}
-          </ol>
-        </div>
+        {!isPhase1 && result.valid && (
+          <MCPSetupGuide mcps={(result as Phase2Validation).mcps} />
+        )}
       </main>
+    </div>
+  );
+}
+
+function Phase1Stats({ stats, os, duration }: { stats: Phase1Validation['stats']; os: string; duration: number }) {
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+      <StatCard label="Total Tools" value={stats.total} color="text-gray-400" />
+      <StatCard label="Installed" value={stats.ok} color="text-green-400" />
+      <StatCard label="Errors" value={stats.error} color="text-red-400" />
+      <StatCard label="Skipped" value={stats.skipped} color="text-yellow-400" />
+      <div className="bg-background-card border border-gray-800 rounded-lg p-6">
+        <div className="text-sm text-gray-400 mb-2">Duration</div>
+        <div className="text-2xl font-bold text-primary">{duration.toFixed(1)}s</div>
+      </div>
+    </div>
+  );
+}
+
+function Phase2Stats({ result }: { result: Phase2Validation }) {
+  return (
+    <>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <StatCard label="Skills Installed" value={result.stats.skills} color="text-green-400" />
+        <StatCard label="Configurations" value={result.stats.configured} color="text-green-400" />
+        <StatCard label="MCPs Pending" value={result.stats.mcps_pending} color="text-yellow-400" />
+        <div className="bg-background-card border border-gray-800 rounded-lg p-6">
+          <div className="text-sm text-gray-400 mb-2">Duration</div>
+          <div className="text-2xl font-bold text-primary">{result.duration.toFixed(2)}s</div>
+        </div>
+      </div>
+
+      {/* Skills List */}
+      <div className="bg-background-card rounded-lg border border-gray-800 p-6 mb-8">
+        <h3 className="text-xl font-semibold text-white mb-4">Installed Skills</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {result.skills.map((skill) => (
+            <div key={skill} className="flex items-center gap-2 p-3 bg-green-900/20 border border-green-700 rounded-lg">
+              <svg className="w-5 h-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              <span className="text-white font-medium">{skill}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Configuration Status */}
+      <div className="bg-background-card rounded-lg border border-gray-800 p-6 mb-8">
+        <h3 className="text-xl font-semibold text-white mb-4">Configuration Status</h3>
+        <div className="space-y-3">
+          <ConfigItem label="EA Default Persona" configured={result.configuration.ea_persona} />
+          <ConfigItem label="CLAUDE.md Created" configured={result.configuration.claude_md} />
+        </div>
+      </div>
+    </>
+  );
+}
+
+function ConfigItem({ label, configured }: { label: string; configured: boolean }) {
+  return (
+    <div className="flex items-center justify-between p-3 bg-gray-900/50 rounded-lg">
+      <span className="text-gray-300">{label}</span>
+      <span className={`px-3 py-1 rounded-full text-sm font-medium ${configured ? 'bg-green-900/20 text-green-400' : 'bg-yellow-900/20 text-yellow-400'}`}>
+        {configured ? '✓ Configured' : '○ Pending'}
+      </span>
+    </div>
+  );
+}
+
+function Phase2Promotion() {
+  return (
+    <div className="mt-8 p-8 bg-gradient-to-br from-primary/20 to-purple-900/20 border-2 border-primary rounded-xl">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center">
+          <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        </div>
+        <div>
+          <h2 className="text-2xl font-bold text-white">Ready for Phase 2!</h2>
+          <p className="text-gray-300">Install skills, configure your AI Executive Assistant, and set up MCP servers</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <FeatureCard
+          title="5 Essential Skills"
+          items={['Superpowers (debugging, planning)', 'Document creation (PDF, DOCX)', 'Browser automation', 'Episodic memory', 'Executive Assistant (EA/Evie)']}
+        />
+        <FeatureCard
+          title="4 MCP Servers"
+          items={['Gmail (with attachments)', 'Google Calendar', 'Google Drive', 'GitHub integration']}
+        />
+        <FeatureCard
+          title="EA Configuration"
+          items={['Morning briefings', 'Email triage automation', 'Proactive task management', 'Cross-session memory']}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <DownloadButton
+          href="https://raw.githubusercontent.com/PerryB-GIT/ai-consultant-toolkit/main/scripts/mac/setup-phase2.sh"
+          platform="macOS"
+          filename="setup-phase2.sh"
+        />
+        <DownloadButton
+          href="https://raw.githubusercontent.com/PerryB-GIT/ai-consultant-toolkit/main/scripts/windows/setup-phase2.ps1"
+          platform="Windows"
+          filename="setup-phase2.ps1"
+        />
+      </div>
+    </div>
+  );
+}
+
+function MCPSetupGuide({ mcps }: { mcps: string[] }) {
+  return (
+    <div className="mt-8 p-8 bg-gradient-to-br from-blue-900/20 to-purple-900/20 border-2 border-blue-700 rounded-xl">
+      <h2 className="text-2xl font-bold text-white mb-4">MCP Server Authentication</h2>
+      <p className="text-gray-300 mb-6">
+        Complete these authentication steps to enable full EA functionality with Gmail, Calendar, Drive, and GitHub.
+      </p>
+
+      <div className="space-y-4 mb-6">
+        <AuthStep
+          number={1}
+          title="Authenticate GitHub"
+          command="gh auth login"
+          description="Follow prompts to authenticate with GitHub via browser"
+        />
+        <AuthStep
+          number={2}
+          title="Authenticate Claude Code"
+          command="claude auth"
+          description="Complete Claude Code authentication"
+        />
+        <AuthStep
+          number={3}
+          title="Set Up Google MCP Servers"
+          command="See setup instructions file"
+          description="Run OAuth authentication for Gmail, Calendar, and Drive (requires custom MCP installation)"
+        />
+      </div>
+
+      <div className="bg-blue-900/30 border border-blue-700 rounded-lg p-4">
+        <h4 className="font-semibold text-white mb-2">📄 Setup Instructions</h4>
+        <p className="text-sm text-gray-300">
+          Check the <code className="px-2 py-1 bg-gray-800 rounded text-blue-400">mcp-setup-instructions.txt</code> file
+          generated by Phase 2 for detailed authentication steps.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function FeatureCard({ title, items }: { title: string; items: string[] }) {
+  return (
+    <div className="bg-background-card/50 backdrop-blur p-4 rounded-lg border border-gray-700">
+      <div className="text-primary font-bold mb-2">{title}</div>
+      <ul className="text-sm text-gray-300 space-y-1">
+        {items.map((item, i) => (
+          <li key={i}>• {item}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function DownloadButton({ href, platform, filename }: { href: string; platform: string; filename: string }) {
+  return (
+    <a
+      href={href}
+      download
+      className="flex items-center justify-between p-4 bg-background-card border border-primary rounded-lg hover:bg-background-card/80 transition-colors"
+    >
+      <div className="flex items-center gap-3">
+        <svg className="w-8 h-8 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+        <div>
+          <div className="font-medium text-white">Download Phase 2 for {platform}</div>
+          <div className="text-sm text-gray-400">{filename}</div>
+        </div>
+      </div>
+      <svg className="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+      </svg>
+    </a>
+  );
+}
+
+function AuthStep({ number, title, command, description }: { number: number; title: string; command: string; description: string }) {
+  return (
+    <div className="flex items-start gap-4 p-4 bg-background-card/50 rounded-lg border border-gray-700">
+      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-700 text-white flex items-center justify-center font-bold">
+        {number}
+      </div>
+      <div className="flex-1">
+        <h4 className="font-semibold text-white mb-1">{title}</h4>
+        <code className="block px-3 py-2 bg-gray-900 rounded text-blue-400 text-sm mb-2">{command}</code>
+        <p className="text-sm text-gray-400">{description}</p>
+      </div>
     </div>
   );
 }
@@ -391,46 +408,6 @@ function StatCard({ label, value, color }: { label: string; value: number; color
     <div className="bg-background-card border border-gray-800 rounded-lg p-6">
       <div className={`text-3xl font-bold ${color} mb-2`}>{value}</div>
       <div className="text-sm text-gray-400">{label}</div>
-    </div>
-  );
-}
-
-function ToolRow({ name, details }: { name: string; details: ToolResult }) {
-  const statusColors = {
-    OK: 'text-green-400 bg-green-900/20',
-    ERROR: 'text-red-400 bg-red-900/20',
-    SKIPPED: 'text-yellow-400 bg-yellow-900/20',
-  };
-
-  const statusIcons = {
-    OK: '✓',
-    ERROR: '✗',
-    SKIPPED: '○',
-  };
-
-  return (
-    <div className="px-6 py-4 hover:bg-gray-900/50 transition-colors">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4 flex-1">
-          <span
-            className={`
-              px-3 py-1 rounded-full text-sm font-medium
-              ${statusColors[details.status]}
-            `}
-          >
-            {statusIcons[details.status]} {details.status}
-          </span>
-          <div>
-            <div className="font-medium text-white">{name}</div>
-            {details.version && (
-              <div className="text-sm text-gray-400">Version: {details.version}</div>
-            )}
-            {details.message && (
-              <div className="text-sm text-gray-400 mt-1">{details.message}</div>
-            )}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
