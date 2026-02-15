@@ -78,14 +78,31 @@ export default function LiveProgressPage() {
 
       // Redirect to results if complete
       if (data.complete) {
-        // Store in sessionStorage for results page
-        sessionStorage.setItem('validationResult', JSON.stringify({
+        // Convert ProgressData to ValidationResult format
+        const toolStatuses = Object.entries(data.toolStatus);
+        const successfulTools = toolStatuses.filter(([_, status]) => status.status === 'success');
+        const errorTools = toolStatuses.filter(([_, status]) => status.status === 'error');
+
+        const validationResult = {
           phase: data.phase === 'phase1' ? 'Phase 1: Tool Installation' : 'Phase 2: Configuration & MCP Setup',
           valid: data.errors.length === 0,
-          summary: data.currentAction,
-          completedSteps: data.completedSteps,
-          currentStep: data.currentStep,
-        }));
+          summary: `${successfulTools.length}/${toolStatuses.length} tools installed successfully`,
+          stats: {
+            ok: successfulTools.length,
+            error: errorTools.length,
+            skipped: 0,
+            total: toolStatuses.length,
+          },
+          issues: data.errors.map(err => `${err.tool}: ${err.error}`),
+          recommendations: data.errors.length === 0
+            ? ['All tools installed successfully!', 'You can now proceed with configuration.']
+            : data.errors.map(err => err.suggestedFix),
+          os: 'Windows', // TODO: Get from progress data if available
+          duration: 0, // TODO: Calculate from start/end timestamps
+        };
+
+        sessionStorage.setItem('validationResult', JSON.stringify(validationResult));
+        sessionStorage.setItem('setupData', JSON.stringify(data));
 
         router.push('/results');
       }
