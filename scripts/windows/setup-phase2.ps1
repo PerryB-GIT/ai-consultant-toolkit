@@ -1,34 +1,30 @@
 <#
 .SYNOPSIS
-    AI Consultant Toolkit - Phase 2: Skills & MCP Setup (Windows)
+    AI Consultant Toolkit - Phase 2: Configuration & MCP Setup (Windows)
 .DESCRIPTION
-    Installs essential Claude Code skills and MCP servers after Phase 1 completes
+    Configures EA persona and sets up MCP servers (assumes skills already installed via Claude Code)
+.NOTES
+    No admin rights required for Phase 2
 #>
-#Requires -RunAsAdministrator
 param([switch]$SkipMCPs = $false)
 $ErrorActionPreference = 'Continue'
 $startTime = Get-Date
 
 $results = @{
     timestamp = (Get-Date -Format 'yyyy-MM-ddTHH:mm:ssZ')
-    phase = 'Phase 2: Skills & MCP Installation'
-    skills = @{
-        superpowers = @{ status = ''; installed = $false }
-        document_skills = @{ status = ''; installed = $false }
-        playwright_skill = @{ status = ''; installed = $false }
-        episodic_memory = @{ status = ''; installed = $false }
-        executive_assistant = @{ status = ''; installed = $false }
-    }
-    mcps = @{
-        gmail = @{ status = ''; installed = $false }
-        google_calendar = @{ status = ''; installed = $false }
-        google_drive = @{ status = ''; installed = $false }
-        github = @{ status = ''; installed = $false }
-        stripe = @{ status = ''; installed = $false }
-    }
+    phase = 'Phase 2: Configuration & MCP Setup'
     configuration = @{
         ea_default_persona = @{ status = ''; configured = $false }
         claude_md_created = @{ status = ''; configured = $false }
+    }
+    mcps = @{
+        gmail = @{ status = ''; configured = $false }
+        google_calendar = @{ status = ''; configured = $false }
+        google_drive = @{ status = ''; configured = $false }
+        github = @{ status = ''; configured = $false }
+    }
+    verification = @{
+        skills_installed = @{ status = ''; verified = $false; skills = @() }
     }
     errors = @()
     duration_seconds = 0
@@ -36,7 +32,7 @@ $results = @{
 
 Write-Host '================================================================' -ForegroundColor Cyan
 Write-Host '   AI Consultant Toolkit - Phase 2 Setup' -ForegroundColor Cyan
-Write-Host '   Skills & MCP Server Installation' -ForegroundColor Cyan
+Write-Host '   Configuration & MCP Server Setup' -ForegroundColor Cyan
 Write-Host '================================================================' -ForegroundColor Cyan
 
 function Write-Step { param([string]$Message); Write-Host "`n> $Message" -ForegroundColor Yellow }
@@ -53,213 +49,61 @@ if (-not (Get-Command claude -ErrorAction SilentlyContinue)) {
 }
 Write-Success 'Claude Code detected'
 
-# ===== CREATE DIRECTORIES =====
-Write-Step 'Creating directories...'
+# ===== VERIFY SKILLS INSTALLED =====
+Write-Step 'Checking installed skills...'
 $skillsDir = Join-Path $env:USERPROFILE '.claude\skills'
-$mcpDir = Join-Path $env:USERPROFILE 'mcp-servers'
-New-Item -ItemType Directory -Force -Path $skillsDir | Out-Null
-New-Item -ItemType Directory -Force -Path $mcpDir | Out-Null
-Write-Success 'Directories ready'
+$settingsFile = Join-Path $env:USERPROFILE '.claude\settings.json'
+$installedSkills = @()
 
-# ===== INSTALL SKILLS =====
-Write-Host "`n================================================================" -ForegroundColor Cyan
-Write-Host "   Installing Essential Skills" -ForegroundColor Cyan
-Write-Host "================================================================" -ForegroundColor Cyan
-
-# Superpowers
-Write-Step 'Installing superpowers plugin...'
-try {
-    claude install superpowers 2>&1 | Out-Null
-    if (Test-Path (Join-Path $skillsDir 'superpowers')) {
-        Write-Success 'Superpowers installed (systematic-debugging, writing-plans, code-review)'
-        $results.skills.superpowers = @{ status = 'OK'; installed = $true }
-    } else {
-        throw 'Installation verification failed'
-    }
-} catch {
-    Write-Failure "Superpowers install failed: $_"
-    Add-Error -Component 'superpowers' -Message $_.Exception.Message
-    $results.skills.superpowers = @{ status = 'ERROR'; installed = $false }
-}
-
-# Document Skills
-Write-Step 'Installing document-skills plugin...'
-try {
-    claude install document-skills 2>&1 | Out-Null
-    if (Test-Path (Join-Path $skillsDir 'document-skills')) {
-        Write-Success 'Document-skills installed (docx, pdf, pptx, xlsx)'
-        $results.skills.document_skills = @{ status = 'OK'; installed = $true }
-    } else {
-        throw 'Installation verification failed'
-    }
-} catch {
-    Write-Failure "Document-skills install failed: $_"
-    Add-Error -Component 'document-skills' -Message $_.Exception.Message
-    $results.skills.document_skills = @{ status = 'ERROR'; installed = $false }
-}
-
-# Playwright Skill
-Write-Step 'Installing playwright-skill plugin...'
-try {
-    claude install playwright-skill 2>&1 | Out-Null
-    if (Test-Path (Join-Path $skillsDir 'playwright-skill')) {
-        Write-Success 'Playwright-skill installed (browser automation)'
-        $results.skills.playwright_skill = @{ status = 'OK'; installed = $true }
-    } else {
-        throw 'Installation verification failed'
-    }
-} catch {
-    Write-Failure "Playwright-skill install failed: $_"
-    Add-Error -Component 'playwright-skill' -Message $_.Exception.Message
-    $results.skills.playwright_skill = @{ status = 'ERROR'; installed = $false }
-}
-
-# Episodic Memory
-Write-Step 'Installing episodic-memory plugin...'
-try {
-    claude install episodic-memory 2>&1 | Out-Null
-    if (Test-Path (Join-Path $skillsDir 'episodic-memory')) {
-        Write-Success 'Episodic-memory installed (cross-session memory)'
-        $results.skills.episodic_memory = @{ status = 'OK'; installed = $true }
-    } else {
-        throw 'Installation verification failed'
-    }
-} catch {
-    Write-Failure "Episodic-memory install failed: $_"
-    Add-Error -Component 'episodic-memory' -Message $_.Exception.Message
-    $results.skills.episodic_memory = @{ status = 'ERROR'; installed = $false }
-}
-
-# Executive Assistant (EA/Evie)
-Write-Step 'Installing executive-assistant plugin...'
-try {
-    claude install executive-assistant 2>&1 | Out-Null
-    if (Test-Path (Join-Path $skillsDir 'executive-assistant')) {
-        Write-Success 'Executive-assistant installed (EA/Evie persona)'
-        $results.skills.executive_assistant = @{ status = 'OK'; installed = $true }
-    } else {
-        throw 'Installation verification failed'
-    }
-} catch {
-    Write-Failure "Executive-assistant install failed: $_"
-    Add-Error -Component 'executive-assistant' -Message $_.Exception.Message
-    $results.skills.executive_assistant = @{ status = 'ERROR'; installed = $false }
-}
-
-# ===== INSTALL MCP SERVERS =====
-if (-not $SkipMCPs) {
-    Write-Host "`n================================================================" -ForegroundColor Cyan
-    Write-Host "   Installing MCP Servers" -ForegroundColor Cyan
-    Write-Host "================================================================" -ForegroundColor Cyan
-
-    # Gmail MCP
-    Write-Step 'Installing Gmail MCP...'
+if (Test-Path $settingsFile) {
     try {
-        $gmailDir = Join-Path $mcpDir 'gmail'
-        New-Item -ItemType Directory -Force -Path $gmailDir | Out-Null
-        Set-Location $gmailDir
+        $settings = Get-Content $settingsFile | ConvertFrom-Json
 
-        # Create package.json
-        @{
-            name = "gmail-mcp"
-            version = "1.0.0"
-            type = "module"
-            dependencies = @{
-                "@modelcontextprotocol/sdk" = "^1.0.0"
-                "googleapis" = "^140.0.0"
+        # Check for key skills in enabledPlugins
+        $requiredSkills = @(
+            'superpowers',
+            'document-skills',
+            'episodic-memory',
+            'playwright',
+            'executive-assistant'
+        )
+
+        foreach ($skill in $requiredSkills) {
+            $found = $false
+            foreach ($plugin in $settings.enabledPlugins.PSObject.Properties) {
+                if ($plugin.Name -like "*$skill*" -and $plugin.Value -eq $true) {
+                    $installedSkills += $skill
+                    $found = $true
+                    break
+                }
             }
-        } | ConvertTo-Json -Depth 10 | Out-File -FilePath (Join-Path $gmailDir 'package.json') -Encoding utf8
-
-        npm install 2>&1 | Out-Null
-        Write-Success 'Gmail MCP installed (requires OAuth setup)'
-        $results.mcps.gmail = @{ status = 'OK'; installed = $true }
-    } catch {
-        Write-Failure "Gmail MCP install failed: $_"
-        Add-Error -Component 'gmail-mcp' -Message $_.Exception.Message
-        $results.mcps.gmail = @{ status = 'ERROR'; installed = $false }
-    }
-
-    # Google Calendar MCP
-    Write-Step 'Installing Google Calendar MCP...'
-    try {
-        $calendarDir = Join-Path $mcpDir 'google-calendar'
-        New-Item -ItemType Directory -Force -Path $calendarDir | Out-Null
-        Set-Location $calendarDir
-
-        @{
-            name = "google-calendar-mcp"
-            version = "1.0.0"
-            type = "module"
-            dependencies = @{
-                "@modelcontextprotocol/sdk" = "^1.0.0"
-                "googleapis" = "^140.0.0"
+            if (-not $found) {
+                # Check if skill folder exists
+                $skillPath = Join-Path $skillsDir $skill
+                if (Test-Path $skillPath) {
+                    $installedSkills += $skill
+                }
             }
-        } | ConvertTo-Json -Depth 10 | Out-File -FilePath (Join-Path $calendarDir 'package.json') -Encoding utf8
+        }
 
-        npm install 2>&1 | Out-Null
-        Write-Success 'Google Calendar MCP installed (requires OAuth setup)'
-        $results.mcps.google_calendar = @{ status = 'OK'; installed = $true }
+        Write-Success "Found $($installedSkills.Count) skills installed"
+        $installedSkills | ForEach-Object { Write-Info "  - $_" }
+        $results.verification.skills_installed = @{ status = 'OK'; verified = $true; skills = $installedSkills }
     } catch {
-        Write-Failure "Google Calendar MCP install failed: $_"
-        Add-Error -Component 'google-calendar-mcp' -Message $_.Exception.Message
-        $results.mcps.google_calendar = @{ status = 'ERROR'; installed = $false }
+        Write-Failure "Failed to read settings.json: $_"
+        Add-Error -Component 'skills-verification' -Message $_.Exception.Message
+        $results.verification.skills_installed = @{ status = 'ERROR'; verified = $false; skills = @() }
     }
-
-    # Google Drive MCP
-    Write-Step 'Installing Google Drive MCP...'
-    try {
-        $driveDir = Join-Path $mcpDir 'google-drive'
-        New-Item -ItemType Directory -Force -Path $driveDir | Out-Null
-        Set-Location $driveDir
-
-        @{
-            name = "google-drive-mcp"
-            version = "1.0.0"
-            type = "module"
-            dependencies = @{
-                "@modelcontextprotocol/sdk" = "^1.0.0"
-                "googleapis" = "^140.0.0"
-            }
-        } | ConvertTo-Json -Depth 10 | Out-File -FilePath (Join-Path $driveDir 'package.json') -Encoding utf8
-
-        npm install 2>&1 | Out-Null
-        Write-Success 'Google Drive MCP installed (requires OAuth setup)'
-        $results.mcps.google_drive = @{ status = 'OK'; installed = $true }
-    } catch {
-        Write-Failure "Google Drive MCP install failed: $_"
-        Add-Error -Component 'google-drive-mcp' -Message $_.Exception.Message
-        $results.mcps.google_drive = @{ status = 'ERROR'; installed = $false }
-    }
-
-    # GitHub MCP
-    Write-Step 'Installing GitHub MCP...'
-    try {
-        $githubDir = Join-Path $mcpDir 'github-mcp'
-        New-Item -ItemType Directory -Force -Path $githubDir | Out-Null
-        Set-Location $githubDir
-
-        @{
-            name = "github-mcp"
-            version = "1.0.0"
-            type = "module"
-            dependencies = @{
-                "@modelcontextprotocol/sdk" = "^1.0.0"
-            }
-        } | ConvertTo-Json -Depth 10 | Out-File -FilePath (Join-Path $githubDir 'package.json') -Encoding utf8
-
-        npm install 2>&1 | Out-Null
-        Write-Success 'GitHub MCP installed (uses gh CLI authentication)'
-        $results.mcps.github = @{ status = 'OK'; installed = $true }
-    } catch {
-        Write-Failure "GitHub MCP install failed: $_"
-        Add-Error -Component 'github-mcp' -Message $_.Exception.Message
-        $results.mcps.github = @{ status = 'ERROR'; installed = $false }
-    }
-
-    Write-Info 'MCP servers installed. OAuth setup required for Google services.'
 } else {
-    Write-Info 'MCP installation skipped (--SkipMCPs flag)'
+    Write-Info 'Settings file not found - skills may not be configured yet'
+    $results.verification.skills_installed = @{ status = 'WARN'; verified = $false; skills = @() }
 }
+
+# ===== CREATE DIRECTORIES =====
+Write-Step 'Creating MCP directories...'
+$mcpDir = Join-Path $env:USERPROFILE 'mcp-servers'
+New-Item -ItemType Directory -Force -Path $mcpDir | Out-Null
+Write-Success 'MCP directory ready'
 
 # ===== CONFIGURE EA AS DEFAULT PERSONA =====
 Write-Host "`n================================================================" -ForegroundColor Cyan
@@ -269,6 +113,15 @@ Write-Host "================================================================" -F
 Write-Step 'Creating CLAUDE.md with EA default persona...'
 try {
     $claudeMdPath = Join-Path $env:USERPROFILE 'CLAUDE.md'
+
+    # Check if CLAUDE.md already exists
+    $existingContent = ""
+    if (Test-Path $claudeMdPath) {
+        Write-Info 'CLAUDE.md already exists - creating backup'
+        $backupPath = Join-Path $env:USERPROFILE "CLAUDE.md.backup.$(Get-Date -Format 'yyyyMMddHHmmss')"
+        Copy-Item $claudeMdPath $backupPath
+        $existingContent = Get-Content $claudeMdPath -Raw
+    }
 
     $claudeMdContent = @"
 # Claude Code Configuration
@@ -308,10 +161,20 @@ try {
 
 ---
 Generated by AI Consultant Toolkit - Phase 2
+Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
+
 "@
+
+    # If there was existing custom content, append it
+    if ($existingContent -and $existingContent -notmatch "AI Consultant Toolkit") {
+        $claudeMdContent += "`n`n# Previous Custom Configuration`n`n$existingContent"
+    }
 
     $claudeMdContent | Out-File -FilePath $claudeMdPath -Encoding utf8
     Write-Success "CLAUDE.md created at $claudeMdPath"
+    if (Test-Path $backupPath) {
+        Write-Info "Backup saved at $backupPath"
+    }
     $results.configuration.claude_md_created = @{ status = 'OK'; configured = $true }
 
     Write-Info 'EA configured as default persona'
@@ -323,6 +186,185 @@ Generated by AI Consultant Toolkit - Phase 2
     $results.configuration.ea_default_persona = @{ status = 'ERROR'; configured = $false }
 }
 
+# ===== MCP SERVER SETUP INSTRUCTIONS =====
+if (-not $SkipMCPs) {
+    Write-Host "`n================================================================" -ForegroundColor Cyan
+    Write-Host "   MCP Server Setup" -ForegroundColor Cyan
+    Write-Host "================================================================" -ForegroundColor Cyan
+
+    Write-Info 'MCP servers require manual OAuth setup'
+    Write-Info 'The following instructions will guide you through authentication'
+
+    # Create setup instructions file
+    $instructionsPath = Join-Path $env:USERPROFILE 'mcp-setup-instructions.txt'
+
+    $instructions = @"
+AI Consultant Toolkit - Phase 2 MCP Setup Instructions
+========================================================
+Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
+
+IMPORTANT: MCP servers are already available in Claude Code.
+You just need to authenticate them to use with your accounts.
+
+Prerequisites:
+1. Claude Code must be authenticated: claude auth
+2. GitHub CLI must be authenticated: gh auth login
+
+---
+
+STEP 1: Authenticate GitHub (if not already done)
+===================================================
+Run in PowerShell:
+  gh auth login
+
+Follow prompts:
+  - Choose: GitHub.com
+  - Protocol: HTTPS
+  - Authenticate: Login with web browser
+  - Complete browser authentication
+
+Verify:
+  gh auth status
+
+Result: GitHub MCP will automatically work via gh CLI authentication
+
+---
+
+STEP 2: Google Services Authentication
+========================================
+Google services (Gmail, Calendar, Drive) require OAuth tokens.
+
+NOTE: These are custom MCP servers that need to be installed separately.
+They are not included in Claude Code by default.
+
+To set up Google MCP servers:
+1. Visit: https://github.com/PerryB-GIT/claude-code-config
+2. Navigate to: mcp-servers/gmail/, google-calendar/, google-drive/
+3. Clone the repositories to: $env:USERPROFILE\mcp-servers\
+4. Run npm install in each directory
+5. Run OAuth authentication for each service
+
+Example for Gmail:
+  cd $env:USERPROFILE\mcp-servers\gmail
+  npm install
+  npm run auth
+
+This will:
+  - Open browser for Google OAuth
+  - Grant access to Gmail API
+  - Save token to ~/.gmail-mcp/tokens.json
+
+Repeat for Calendar and Drive:
+  cd $env:USERPROFILE\mcp-servers\google-calendar
+  npm install
+  npm run auth
+
+  cd $env:USERPROFILE\mcp-servers\google-drive
+  npm install
+  npm run auth
+
+---
+
+STEP 3: Configure MCP Servers in Claude Code
+==============================================
+Add to ~/.claude/settings.json under "mcpServers":
+
+{
+  "mcpServers": {
+    "gmail": {
+      "command": "node",
+      "args": ["$env:USERPROFILE\mcp-servers\gmail\index.js"]
+    },
+    "google-calendar": {
+      "command": "node",
+      "args": ["$env:USERPROFILE\mcp-servers\google-calendar\index.js"]
+    },
+    "google-drive": {
+      "command": "node",
+      "args": ["$env:USERPROFILE\mcp-servers\google-drive\index.js"]
+    }
+  }
+}
+
+---
+
+STEP 4: Restart Claude Code
+============================
+After configuring MCP servers, restart Claude Code:
+  - Close all Claude Code sessions
+  - Start fresh: claude chat
+
+---
+
+STEP 5: Test Your Setup
+========================
+Test EA with these commands:
+
+  "Good morning"
+  - Should provide briefing with email, calendar, tasks
+
+  "Check my email"
+  - Should list recent emails (requires Gmail MCP)
+
+  "What's on my calendar today?"
+  - Should show today's events (requires Calendar MCP)
+
+  "List my Drive files"
+  - Should show recent files (requires Drive MCP)
+
+---
+
+TROUBLESHOOTING
+===============
+
+Issue: "Gmail MCP not authenticated"
+Fix: cd $env:USERPROFILE\mcp-servers\gmail && npm run auth
+
+Issue: "Command 'node' not found"
+Fix: Ensure Node.js is in PATH (restart PowerShell or run refreshenv)
+
+Issue: "OAuth token expired"
+Fix: Re-run npm run auth in the MCP directory
+
+Issue: "MCP server not responding"
+Fix: Check ~/.claude/settings.json for correct paths
+      Restart Claude Code
+
+---
+
+NEXT STEPS
+==========
+1. Follow the authentication steps above
+2. Test each MCP service individually
+3. Once working, explore the comprehensive guides:
+   - EA Configuration Guide
+   - Custom Skills Walkthrough
+
+Guide Links:
+  https://github.com/PerryB-GIT/ai-consultant-toolkit/blob/main/guides/EA-CONFIGURATION-GUIDE.md
+  https://github.com/PerryB-GIT/ai-consultant-toolkit/blob/main/guides/CUSTOM-SKILLS-WALKTHROUGH.md
+
+---
+"@
+
+    $instructions | Out-File -FilePath $instructionsPath -Encoding utf8
+    Write-Success "Setup instructions saved to: $instructionsPath"
+    Write-Info 'Please review the instructions file for MCP authentication steps'
+
+    # Mark MCPs as needing manual setup
+    $results.mcps.gmail = @{ status = 'MANUAL_SETUP_REQUIRED'; configured = $false }
+    $results.mcps.google_calendar = @{ status = 'MANUAL_SETUP_REQUIRED'; configured = $false }
+    $results.mcps.google_drive = @{ status = 'MANUAL_SETUP_REQUIRED'; configured = $false }
+    $results.mcps.github = @{ status = 'MANUAL_SETUP_REQUIRED'; configured = $false }
+
+} else {
+    Write-Info 'MCP setup skipped (--SkipMCPs flag)'
+    $results.mcps.gmail = @{ status = 'SKIPPED'; configured = $false }
+    $results.mcps.google_calendar = @{ status = 'SKIPPED'; configured = $false }
+    $results.mcps.google_drive = @{ status = 'SKIPPED'; configured = $false }
+    $results.mcps.github = @{ status = 'SKIPPED'; configured = $false }
+}
+
 # ===== GENERATE RESULTS JSON =====
 $duration = (Get-Date).Subtract($startTime).TotalSeconds
 $results.duration_seconds = [math]::Round($duration, 2)
@@ -331,21 +373,33 @@ $outputFile = Join-Path $env:USERPROFILE 'setup-phase2-results.json'
 $results | ConvertTo-Json -Depth 10 | Out-File -FilePath $outputFile -Encoding utf8
 
 Write-Host "`n================================================================" -ForegroundColor Cyan
-Write-Host "   Phase 2 Setup Complete!" -ForegroundColor Green
+Write-Host "   Phase 2 Configuration Complete!" -ForegroundColor Green
 Write-Host "================================================================" -ForegroundColor Cyan
 Write-Host "Results: $outputFile" -ForegroundColor Cyan
 Write-Host "Duration: $($results.duration_seconds)s" -ForegroundColor Cyan
 
-Write-Host "`nWhat was installed:" -ForegroundColor Yellow
-Write-Host "  Skills: superpowers, document-skills, playwright, episodic-memory, executive-assistant"
-Write-Host "  MCPs: Gmail, Calendar, Drive, GitHub, Stripe (requires OAuth setup)"
-Write-Host "  Config: EA/Evie as default persona in CLAUDE.md"
+Write-Host ""
+Write-Host "What was configured:" -ForegroundColor Yellow
+Write-Host "  [OK] CLAUDE.md created with EA default persona"
+Write-Host "  [OK] Verified existing skills installation"
+Write-Host "  [OK] Created MCP setup instructions"
 
-Write-Host "`nNext steps:" -ForegroundColor Yellow
-Write-Host "  1. Upload $outputFile to dashboard"
-Write-Host "  2. Authenticate Google services: cd ~/mcp-servers/gmail && npm run auth"
-Write-Host "  3. Authenticate GitHub: gh auth login"
-Write-Host "  4. Test EA: claude chat (will use EA persona by default)"
-Write-Host "  5. Learn to create custom skills (see Phase 3 walkthrough)"
+Write-Host ""
+Write-Host "Skills found:" -ForegroundColor Yellow
+if ($installedSkills.Count -gt 0) {
+    $installedSkills | ForEach-Object { Write-Host "  - $_" -ForegroundColor Green }
+} else {
+    Write-Host "  [WARN] No skills detected - may need manual installation" -ForegroundColor Red
+}
+
+Write-Host ""
+Write-Host "Next steps:" -ForegroundColor Yellow
+Write-Host "  1. Review MCP setup instructions: $instructionsPath"
+Write-Host "  2. Authenticate GitHub: gh auth login"
+Write-Host "  3. Authenticate Claude: claude auth"
+Write-Host "  4. Set up Google MCP servers (see instructions file)"
+Write-Host "  5. Restart Claude Code: exit, then claude chat"
+Write-Host "  6. Test EA: claude chat, then say Good morning"
+Write-Host "  7. Upload $outputFile to dashboard (optional)"
 
 return $results
