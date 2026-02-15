@@ -125,7 +125,7 @@ if (Get-Command choco -ErrorAction SilentlyContinue) {
     Write-Success "Chocolatey already installed ($version)"
     $results.results.chocolatey = @{ status = 'OK'; version = $version; installed = $false }
     $toolStatus['chocolatey'] = @{ status = 'success'; version = $version }
-    $completedSteps += 'chocolatey'
+    $completedSteps += 1
 } else {
     Write-Info 'Installing Chocolatey...'
     $toolStatus['chocolatey'] = @{ status = 'installing'; version = $null }
@@ -140,7 +140,7 @@ if (Get-Command choco -ErrorAction SilentlyContinue) {
             Write-Success "Chocolatey installed ($version)"
             $results.results.chocolatey = @{ status = 'OK'; version = $version; installed = $true }
             $toolStatus['chocolatey'] = @{ status = 'success'; version = $version }
-            $completedSteps += 'chocolatey'
+            $completedSteps += 1
         } else {
             throw 'Chocolatey installation verification failed'
         }
@@ -163,7 +163,7 @@ if (Get-Command git -ErrorAction SilentlyContinue) {
     Write-Success "Git already installed ($version)"
     $results.results.git = @{ status = 'OK'; version = $version; installed = $false }
     $toolStatus['git'] = @{ status = 'success'; version = $version }
-    $completedSteps += 'git'
+    $completedSteps += 2
 } else {
     Write-Info 'Installing Git...'
     $toolStatus['git'] = @{ status = 'installing'; version = $null }
@@ -176,7 +176,7 @@ if (Get-Command git -ErrorAction SilentlyContinue) {
             Write-Success "Git installed ($version)"
             $results.results.git = @{ status = 'OK'; version = $version; installed = $true }
             $toolStatus['git'] = @{ status = 'success'; version = $version }
-            $completedSteps += 'git'
+            $completedSteps += 2
         } else {
             throw 'Git installation verification failed'
         }
@@ -199,7 +199,7 @@ if (Get-Command gh -ErrorAction SilentlyContinue) {
     Write-Success "GitHub CLI already installed ($version)"
     $results.results.github_cli = @{ status = 'OK'; version = $version; installed = $false }
     $toolStatus['github_cli'] = @{ status = 'success'; version = $version }
-    $completedSteps += 'github_cli'
+    $completedSteps += 3
 } else {
     Write-Info 'Installing GitHub CLI...'
     $toolStatus['github_cli'] = @{ status = 'installing'; version = $null }
@@ -212,7 +212,7 @@ if (Get-Command gh -ErrorAction SilentlyContinue) {
             Write-Success "GitHub CLI installed ($version)"
             $results.results.github_cli = @{ status = 'OK'; version = $version; installed = $true }
             $toolStatus['github_cli'] = @{ status = 'success'; version = $version }
-            $completedSteps += 'github_cli'
+            $completedSteps += 3
         } else {
             throw 'GitHub CLI installation verification failed'
         }
@@ -235,7 +235,7 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
     Write-Success "Node.js already installed ($version)"
     $results.results.nodejs = @{ status = 'OK'; version = $version; installed = $false }
     $toolStatus['nodejs'] = @{ status = 'success'; version = $version }
-    $completedSteps += 'nodejs'
+    $completedSteps += 4
 } else {
     Write-Info 'Installing Node.js v20 LTS...'
     $toolStatus['nodejs'] = @{ status = 'installing'; version = $null }
@@ -248,7 +248,7 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
             Write-Success "Node.js installed ($version)"
             $results.results.nodejs = @{ status = 'OK'; version = $version; installed = $true }
             $toolStatus['nodejs'] = @{ status = 'success'; version = $version }
-            $completedSteps += 'nodejs'
+            $completedSteps += 4
         } else {
             throw 'Node.js installation verification failed'
         }
@@ -271,7 +271,7 @@ if (Get-Command python -ErrorAction SilentlyContinue) {
     Write-Success "Python already installed ($version)"
     $results.results.python = @{ status = 'OK'; version = $version; installed = $false }
     $toolStatus['python'] = @{ status = 'success'; version = $version }
-    $completedSteps += 'python'
+    $completedSteps += 5
 } else {
     Write-Info 'Installing Python 3.11...'
     $toolStatus['python'] = @{ status = 'installing'; version = $null }
@@ -284,7 +284,7 @@ if (Get-Command python -ErrorAction SilentlyContinue) {
             Write-Success "Python installed ($version)"
             $results.results.python = @{ status = 'OK'; version = $version; installed = $true }
             $toolStatus['python'] = @{ status = 'success'; version = $version }
-            $completedSteps += 'python'
+            $completedSteps += 5
         } else {
             throw 'Python installation verification failed'
         }
@@ -309,7 +309,7 @@ if ($wslStatus -like '*Default Version: 2*' -or $wslStatus -like '*WSL version: 
     Write-Success "WSL2 already installed ($version)"
     $results.results.wsl2 = @{ status = 'OK'; version = $version; installed = $false; restart_required = $false }
     $toolStatus['wsl2'] = @{ status = 'success'; version = $version }
-    $completedSteps += 'wsl2'
+    $completedSteps += 6
 } else {
     Write-Info 'Installing WSL2...'
     $toolStatus['wsl2'] = @{ status = 'installing'; version = $null }
@@ -319,7 +319,7 @@ if ($wslStatus -like '*Default Version: 2*' -or $wslStatus -like '*WSL version: 
         $results.restart_required = $true
         $results.results.wsl2 = @{ status = 'OK'; version = '2.0.0'; installed = $true; restart_required = $true }
         $toolStatus['wsl2'] = @{ status = 'success'; version = '2.0.0'; restart_required = $true }
-        $completedSteps += 'wsl2'
+        $completedSteps += 6
         Write-Success 'WSL2 installed (restart required)'
         Write-Host '  [WARN] You must restart Windows to complete WSL2 installation' -ForegroundColor Yellow
     } catch {
@@ -341,7 +341,7 @@ if (Get-Command claude -ErrorAction SilentlyContinue) {
     Write-Success "Claude Code already installed ($version)"
     $results.results.claude = @{ status = 'OK'; version = $version; installed = $false }
     $toolStatus['claude'] = @{ status = 'success'; version = $version }
-    $completedSteps += 'claude'
+    $completedSteps += 7
 } else {
     Write-Info 'Installing Claude Code via npm...'
     $toolStatus['claude'] = @{ status = 'installing'; version = $null }
@@ -362,7 +362,7 @@ if (Get-Command claude -ErrorAction SilentlyContinue) {
             Write-Success "Claude Code installed ($version)"
             $results.results.claude = @{ status = 'OK'; version = $version; installed = $true }
             $toolStatus['claude'] = @{ status = 'success'; version = $version }
-            $completedSteps += 'claude'
+            $completedSteps += 7
         } else {
             throw 'Claude Code installation verification failed'
         }
@@ -384,19 +384,19 @@ if ($SkipDocker) {
     Write-Info 'Docker installation skipped (--SkipDocker flag)'
     $results.results.docker = @{ status = 'SKIPPED'; version = $null; installed = $false }
     $toolStatus['docker'] = @{ status = 'skipped'; version = $null }
-    $completedSteps += 'docker'
+    $completedSteps += 8
 } elseif (Get-Command docker -ErrorAction SilentlyContinue) {
     $version = Get-InstalledVersion -Command 'docker'
     Write-Success "Docker already installed ($version)"
     $results.results.docker = @{ status = 'OK'; version = $version; installed = $false }
     $toolStatus['docker'] = @{ status = 'success'; version = $version }
-    $completedSteps += 'docker'
+    $completedSteps += 8
 } else {
     if ($results.results.wsl2.restart_required) {
         Write-Info 'Docker installation skipped (WSL2 restart required first)'
         $results.results.docker = @{ status = 'SKIPPED'; version = $null; installed = $false }
         $toolStatus['docker'] = @{ status = 'skipped'; version = $null; message = 'WSL2 restart required first' }
-        $completedSteps += 'docker'
+        $completedSteps += 8
     } else {
         Write-Info 'Installing Docker Desktop...'
         $toolStatus['docker'] = @{ status = 'installing'; version = $null }
@@ -409,7 +409,7 @@ if ($SkipDocker) {
                 Write-Success "Docker Desktop installed ($version)"
                 $results.results.docker = @{ status = 'OK'; version = $version; installed = $true }
                 $toolStatus['docker'] = @{ status = 'success'; version = $version }
-                $completedSteps += 'docker'
+                $completedSteps += 8
                 Write-Info 'Docker Desktop requires manual start from Start Menu'
             } else {
                 throw 'Docker Desktop installation verification failed'
