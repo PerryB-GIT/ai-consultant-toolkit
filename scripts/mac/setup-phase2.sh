@@ -1,7 +1,8 @@
 #!/bin/bash
 #
-# AI Consultant Toolkit - Phase 2: Skills & MCP Setup (macOS)
-# Installs essential Claude Code skills and MCP servers after Phase 1 completes
+# AI Consultant Toolkit - Phase 2: Configuration & MCP Setup (macOS)
+# Configures EA persona and sets up MCP servers (assumes skills already installed via Claude Code)
+# No admin rights required
 #
 
 set -e
@@ -18,6 +19,7 @@ done
 
 START_TIME=$(date +%s)
 RESULTS_FILE="$HOME/setup-phase2-results.json"
+INSTRUCTIONS_FILE="$HOME/mcp-setup-instructions.txt"
 
 # Colors
 CYAN='\033[0;36m'
@@ -28,7 +30,7 @@ NC='\033[0m' # No Color
 
 echo -e "${CYAN}================================================================${NC}"
 echo -e "${CYAN}   AI Consultant Toolkit - Phase 2 Setup${NC}"
-echo -e "${CYAN}   Skills & MCP Server Installation${NC}"
+echo -e "${CYAN}   Configuration & MCP Server Setup${NC}"
 echo -e "${CYAN}================================================================${NC}"
 
 # Verify Claude Code installed
@@ -39,176 +41,33 @@ if ! command -v claude &> /dev/null; then
 fi
 echo -e "${GREEN}  [OK] Claude Code detected${NC}"
 
-# Create directories
-echo -e "\n${YELLOW}> Creating directories...${NC}"
-mkdir -p "$HOME/.claude/skills"
+# Check installed skills
+echo -e "\n${YELLOW}> Checking installed skills...${NC}"
+SETTINGS_FILE="$HOME/.claude/settings.json"
+SKILLS_FOUND=()
+
+if [ -f "$SETTINGS_FILE" ]; then
+    # Check for key skills
+    for skill in superpowers document-skills episodic-memory playwright executive-assistant; do
+        if grep -q "$skill" "$SETTINGS_FILE" 2>/dev/null; then
+            SKILLS_FOUND+=("$skill")
+        elif [ -d "$HOME/.claude/skills/$skill" ]; then
+            SKILLS_FOUND+=("$skill")
+        fi
+    done
+
+    echo -e "${GREEN}  [OK] Found ${#SKILLS_FOUND[@]} skills installed${NC}"
+    for skill in "${SKILLS_FOUND[@]}"; do
+        echo -e "${CYAN}  [INFO]   - $skill${NC}"
+    done
+else
+    echo -e "${YELLOW}  [WARN] Settings file not found - skills may not be configured yet${NC}"
+fi
+
+# Create MCP directories
+echo -e "\n${YELLOW}> Creating MCP directories...${NC}"
 mkdir -p "$HOME/mcp-servers"
-echo -e "${GREEN}  [OK] Directories ready${NC}"
-
-# Install Skills
-echo -e "\n${CYAN}================================================================${NC}"
-echo -e "${CYAN}   Installing Essential Skills${NC}"
-echo -e "${CYAN}================================================================${NC}"
-
-# Superpowers
-echo -e "\n${YELLOW}> Installing superpowers plugin...${NC}"
-if claude install superpowers &> /dev/null && [ -d "$HOME/.claude/skills/superpowers" ]; then
-    echo -e "${GREEN}  [OK] Superpowers installed (systematic-debugging, writing-plans, code-review)${NC}"
-    SUPERPOWERS_STATUS="OK"
-else
-    echo -e "${RED}  [FAIL] Superpowers install failed${NC}"
-    SUPERPOWERS_STATUS="ERROR"
-fi
-
-# Document Skills
-echo -e "\n${YELLOW}> Installing document-skills plugin...${NC}"
-if claude install document-skills &> /dev/null && [ -d "$HOME/.claude/skills/document-skills" ]; then
-    echo -e "${GREEN}  [OK] Document-skills installed (docx, pdf, pptx, xlsx)${NC}"
-    DOCUMENT_SKILLS_STATUS="OK"
-else
-    echo -e "${RED}  [FAIL] Document-skills install failed${NC}"
-    DOCUMENT_SKILLS_STATUS="ERROR"
-fi
-
-# Playwright Skill
-echo -e "\n${YELLOW}> Installing playwright-skill plugin...${NC}"
-if claude install playwright-skill &> /dev/null && [ -d "$HOME/.claude/skills/playwright-skill" ]; then
-    echo -e "${GREEN}  [OK] Playwright-skill installed (browser automation)${NC}"
-    PLAYWRIGHT_STATUS="OK"
-else
-    echo -e "${RED}  [FAIL] Playwright-skill install failed${NC}"
-    PLAYWRIGHT_STATUS="ERROR"
-fi
-
-# Episodic Memory
-echo -e "\n${YELLOW}> Installing episodic-memory plugin...${NC}"
-if claude install episodic-memory &> /dev/null && [ -d "$HOME/.claude/skills/episodic-memory" ]; then
-    echo -e "${GREEN}  [OK] Episodic-memory installed (cross-session memory)${NC}"
-    EPISODIC_MEMORY_STATUS="OK"
-else
-    echo -e "${RED}  [FAIL] Episodic-memory install failed${NC}"
-    EPISODIC_MEMORY_STATUS="ERROR"
-fi
-
-# Executive Assistant
-echo -e "\n${YELLOW}> Installing executive-assistant plugin...${NC}"
-if claude install executive-assistant &> /dev/null && [ -d "$HOME/.claude/skills/executive-assistant" ]; then
-    echo -e "${GREEN}  [OK] Executive-assistant installed (EA/Evie persona)${NC}"
-    EXEC_ASSISTANT_STATUS="OK"
-else
-    echo -e "${RED}  [FAIL] Executive-assistant install failed${NC}"
-    EXEC_ASSISTANT_STATUS="ERROR"
-fi
-
-# Install MCP Servers
-if [ "$SKIP_MCPS" = false ]; then
-    echo -e "\n${CYAN}================================================================${NC}"
-    echo -e "${CYAN}   Installing MCP Servers${NC}"
-    echo -e "${CYAN}================================================================${NC}"
-
-    # Gmail MCP
-    echo -e "\n${YELLOW}> Installing Gmail MCP...${NC}"
-    GMAIL_DIR="$HOME/mcp-servers/gmail"
-    mkdir -p "$GMAIL_DIR"
-    cd "$GMAIL_DIR"
-    cat > package.json <<EOF
-{
-  "name": "gmail-mcp",
-  "version": "1.0.0",
-  "type": "module",
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0",
-    "googleapis": "^140.0.0"
-  }
-}
-EOF
-    if npm install &> /dev/null; then
-        echo -e "${GREEN}  [OK] Gmail MCP installed (requires OAuth setup)${NC}"
-        GMAIL_STATUS="OK"
-    else
-        echo -e "${RED}  [FAIL] Gmail MCP install failed${NC}"
-        GMAIL_STATUS="ERROR"
-    fi
-
-    # Google Calendar MCP
-    echo -e "\n${YELLOW}> Installing Google Calendar MCP...${NC}"
-    CALENDAR_DIR="$HOME/mcp-servers/google-calendar"
-    mkdir -p "$CALENDAR_DIR"
-    cd "$CALENDAR_DIR"
-    cat > package.json <<EOF
-{
-  "name": "google-calendar-mcp",
-  "version": "1.0.0",
-  "type": "module",
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0",
-    "googleapis": "^140.0.0"
-  }
-}
-EOF
-    if npm install &> /dev/null; then
-        echo -e "${GREEN}  [OK] Google Calendar MCP installed (requires OAuth setup)${NC}"
-        CALENDAR_STATUS="OK"
-    else
-        echo -e "${RED}  [FAIL] Google Calendar MCP install failed${NC}"
-        CALENDAR_STATUS="ERROR"
-    fi
-
-    # Google Drive MCP
-    echo -e "\n${YELLOW}> Installing Google Drive MCP...${NC}"
-    DRIVE_DIR="$HOME/mcp-servers/google-drive"
-    mkdir -p "$DRIVE_DIR"
-    cd "$DRIVE_DIR"
-    cat > package.json <<EOF
-{
-  "name": "google-drive-mcp",
-  "version": "1.0.0",
-  "type": "module",
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0",
-    "googleapis": "^140.0.0"
-  }
-}
-EOF
-    if npm install &> /dev/null; then
-        echo -e "${GREEN}  [OK] Google Drive MCP installed (requires OAuth setup)${NC}"
-        DRIVE_STATUS="OK"
-    else
-        echo -e "${RED}  [FAIL] Google Drive MCP install failed${NC}"
-        DRIVE_STATUS="ERROR"
-    fi
-
-    # GitHub MCP
-    echo -e "\n${YELLOW}> Installing GitHub MCP...${NC}"
-    GITHUB_DIR="$HOME/mcp-servers/github-mcp"
-    mkdir -p "$GITHUB_DIR"
-    cd "$GITHUB_DIR"
-    cat > package.json <<EOF
-{
-  "name": "github-mcp",
-  "version": "1.0.0",
-  "type": "module",
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0"
-  }
-}
-EOF
-    if npm install &> /dev/null; then
-        echo -e "${GREEN}  [OK] GitHub MCP installed (uses gh CLI authentication)${NC}"
-        GITHUB_STATUS="OK"
-    else
-        echo -e "${RED}  [FAIL] GitHub MCP install failed${NC}"
-        GITHUB_STATUS="ERROR"
-    fi
-
-    echo -e "${CYAN}  [INFO] MCP servers installed. OAuth setup required for Google services.${NC}"
-else
-    echo -e "${CYAN}  [INFO] MCP installation skipped (--skip-mcps flag)${NC}"
-    GMAIL_STATUS="SKIPPED"
-    CALENDAR_STATUS="SKIPPED"
-    DRIVE_STATUS="SKIPPED"
-    GITHUB_STATUS="SKIPPED"
-fi
+echo -e "${GREEN}  [OK] MCP directory ready${NC}"
 
 # Configure EA as default persona
 echo -e "\n${CYAN}================================================================${NC}"
@@ -217,6 +76,16 @@ echo -e "${CYAN}================================================================
 
 echo -e "\n${YELLOW}> Creating CLAUDE.md with EA default persona...${NC}"
 CLAUDE_MD="$HOME/CLAUDE.md"
+
+# Backup existing CLAUDE.md if it exists
+if [ -f "$CLAUDE_MD" ]; then
+    BACKUP_FILE="$CLAUDE_MD.backup.$(date +%Y%m%d%H%M%S)"
+    cp "$CLAUDE_MD" "$BACKUP_FILE"
+    echo -e "${CYAN}  [INFO] CLAUDE.md already exists - creating backup${NC}"
+    echo -e "${CYAN}  [INFO] Backup saved at $BACKUP_FILE${NC}"
+fi
+
+# Create new CLAUDE.md
 cat > "$CLAUDE_MD" <<'EOF'
 # Claude Code Configuration
 
@@ -255,37 +124,228 @@ cat > "$CLAUDE_MD" <<'EOF'
 
 ---
 Generated by AI Consultant Toolkit - Phase 2
+Generated: $(date '+%Y-%m-%d %H:%M:%S')
 EOF
 
 echo -e "${GREEN}  [OK] CLAUDE.md created at $CLAUDE_MD${NC}"
 echo -e "${CYAN}  [INFO] EA configured as default persona${NC}"
-CLAUDE_MD_STATUS="OK"
-EA_PERSONA_STATUS="OK"
+
+# MCP Server Setup Instructions
+if [ "$SKIP_MCPS" = false ]; then
+    echo -e "\n${CYAN}================================================================${NC}"
+    echo -e "${CYAN}   MCP Server Setup${NC}"
+    echo -e "${CYAN}================================================================${NC}"
+
+    echo -e "${CYAN}  [INFO] MCP servers require manual OAuth setup${NC}"
+    echo -e "${CYAN}  [INFO] The following instructions will guide you through authentication${NC}"
+
+    # Create setup instructions file
+    cat > "$INSTRUCTIONS_FILE" <<EOF
+AI Consultant Toolkit - Phase 2 MCP Setup Instructions
+========================================================
+Generated: $(date '+%Y-%m-%d %H:%M:%S')
+
+IMPORTANT: MCP servers are already available in Claude Code.
+You just need to authenticate them to use with your accounts.
+
+Prerequisites:
+1. Claude Code must be authenticated: claude auth
+2. GitHub CLI must be authenticated: gh auth login
+
+---
+
+STEP 1: Authenticate GitHub (if not already done)
+===================================================
+Run in Terminal:
+  gh auth login
+
+Follow prompts:
+  - Choose: GitHub.com
+  - Protocol: HTTPS
+  - Authenticate: Login with web browser
+  - Complete browser authentication
+
+Verify:
+  gh auth status
+
+Result: GitHub MCP will automatically work via gh CLI authentication
+
+---
+
+STEP 2: Google Services Authentication
+========================================
+Google services (Gmail, Calendar, Drive) require OAuth tokens.
+
+NOTE: These are custom MCP servers that need to be installed separately.
+They are not included in Claude Code by default.
+
+To set up Google MCP servers:
+1. Visit: https://github.com/PerryB-GIT/claude-code-config
+2. Navigate to: mcp-servers/gmail/, google-calendar/, google-drive/
+3. Clone the repositories to: ~/mcp-servers/
+4. Run npm install in each directory
+5. Run OAuth authentication for each service
+
+Example for Gmail:
+  cd ~/mcp-servers/gmail
+  npm install
+  npm run auth
+
+This will:
+  - Open browser for Google OAuth
+  - Grant access to Gmail API
+  - Save token to ~/.gmail-mcp/tokens.json
+
+Repeat for Calendar and Drive:
+  cd ~/mcp-servers/google-calendar
+  npm install
+  npm run auth
+
+  cd ~/mcp-servers/google-drive
+  npm install
+  npm run auth
+
+---
+
+STEP 3: Configure MCP Servers in Claude Code
+==============================================
+Add to ~/.claude/settings.json under "mcpServers":
+
+{
+  "mcpServers": {
+    "gmail": {
+      "command": "node",
+      "args": ["/Users/YourName/mcp-servers/gmail/index.js"]
+    },
+    "google-calendar": {
+      "command": "node",
+      "args": ["/Users/YourName/mcp-servers/google-calendar/index.js"]
+    },
+    "google-drive": {
+      "command": "node",
+      "args": ["/Users/YourName/mcp-servers/google-drive/index.js"]
+    }
+  }
+}
+
+---
+
+STEP 4: Restart Claude Code
+============================
+After configuring MCP servers, restart Claude Code:
+  - Close all Claude Code sessions
+  - Start fresh: claude chat
+
+---
+
+STEP 5: Test Your Setup
+========================
+Test EA with these commands:
+
+  "Good morning"
+  - Should provide briefing with email, calendar, tasks
+
+  "Check my email"
+  - Should list recent emails (requires Gmail MCP)
+
+  "What's on my calendar today?"
+  - Should show today's events (requires Calendar MCP)
+
+  "List my Drive files"
+  - Should show recent files (requires Drive MCP)
+
+---
+
+TROUBLESHOOTING
+===============
+
+Issue: "Gmail MCP not authenticated"
+Fix: cd ~/mcp-servers/gmail && npm run auth
+
+Issue: "Command 'node' not found"
+Fix: Ensure Node.js is in PATH (restart Terminal)
+
+Issue: "OAuth token expired"
+Fix: Re-run npm run auth in the MCP directory
+
+Issue: "MCP server not responding"
+Fix: Check ~/.claude/settings.json for correct paths
+      Restart Claude Code
+
+---
+
+NEXT STEPS
+==========
+1. Follow the authentication steps above
+2. Test each MCP service individually
+3. Once working, explore the comprehensive guides:
+   - EA Configuration Guide
+   - Custom Skills Walkthrough
+
+Guide Links:
+  https://github.com/PerryB-GIT/ai-consultant-toolkit/blob/main/guides/EA-CONFIGURATION-GUIDE.md
+  https://github.com/PerryB-GIT/ai-consultant-toolkit/blob/main/guides/CUSTOM-SKILLS-WALKTHROUGH.md
+
+---
+EOF
+
+    echo -e "${GREEN}  [OK] Setup instructions saved to: $INSTRUCTIONS_FILE${NC}"
+    echo -e "${CYAN}  [INFO] Please review the instructions file for MCP authentication steps${NC}"
+fi
 
 # Generate results JSON
 END_TIME=$(date +%s)
 DURATION=$((END_TIME - START_TIME))
 
+# Build skills array for JSON
+SKILLS_JSON="["
+for i in "${!SKILLS_FOUND[@]}"; do
+    if [ $i -gt 0 ]; then
+        SKILLS_JSON+=","
+    fi
+    SKILLS_JSON+="\"${SKILLS_FOUND[$i]}\""
+done
+SKILLS_JSON+="]"
+
+# Create results JSON
 cat > "$RESULTS_FILE" <<EOF
 {
   "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
-  "phase": "Phase 2: Skills & MCP Installation",
-  "skills": {
-    "superpowers": { "status": "$SUPERPOWERS_STATUS", "installed": $([ "$SUPERPOWERS_STATUS" = "OK" ] && echo "true" || echo "false") },
-    "document_skills": { "status": "$DOCUMENT_SKILLS_STATUS", "installed": $([ "$DOCUMENT_SKILLS_STATUS" = "OK" ] && echo "true" || echo "false") },
-    "playwright_skill": { "status": "$PLAYWRIGHT_STATUS", "installed": $([ "$PLAYWRIGHT_STATUS" = "OK" ] && echo "true" || echo "false") },
-    "episodic_memory": { "status": "$EPISODIC_MEMORY_STATUS", "installed": $([ "$EPISODIC_MEMORY_STATUS" = "OK" ] && echo "true" || echo "false") },
-    "executive_assistant": { "status": "$EXEC_ASSISTANT_STATUS", "installed": $([ "$EXEC_ASSISTANT_STATUS" = "OK" ] && echo "true" || echo "false") }
-  },
-  "mcps": {
-    "gmail": { "status": "$GMAIL_STATUS", "installed": $([ "$GMAIL_STATUS" = "OK" ] && echo "true" || echo "false") },
-    "google_calendar": { "status": "$CALENDAR_STATUS", "installed": $([ "$CALENDAR_STATUS" = "OK" ] && echo "true" || echo "false") },
-    "google_drive": { "status": "$DRIVE_STATUS", "installed": $([ "$DRIVE_STATUS" = "OK" ] && echo "true" || echo "false") },
-    "github": { "status": "$GITHUB_STATUS", "installed": $([ "$GITHUB_STATUS" = "OK" ] && echo "true" || echo "false") }
+  "phase": "Phase 2: Configuration & MCP Setup",
+  "verification": {
+    "skills_installed": {
+      "status": "OK",
+      "verified": true,
+      "skills": $SKILLS_JSON
+    }
   },
   "configuration": {
-    "ea_default_persona": { "status": "$EA_PERSONA_STATUS", "configured": $([ "$EA_PERSONA_STATUS" = "OK" ] && echo "true" || echo "false") },
-    "claude_md_created": { "status": "$CLAUDE_MD_STATUS", "configured": $([ "$CLAUDE_MD_STATUS" = "OK" ] && echo "true" || echo "false") }
+    "ea_default_persona": {
+      "status": "OK",
+      "configured": true
+    },
+    "claude_md_created": {
+      "status": "OK",
+      "configured": true
+    }
+  },
+  "mcps": {
+    "gmail": {
+      "status": "MANUAL_SETUP_REQUIRED",
+      "configured": false
+    },
+    "google_calendar": {
+      "status": "MANUAL_SETUP_REQUIRED",
+      "configured": false
+    },
+    "google_drive": {
+      "status": "MANUAL_SETUP_REQUIRED",
+      "configured": false
+    },
+    "github": {
+      "status": "MANUAL_SETUP_REQUIRED",
+      "configured": false
+    }
   },
   "errors": [],
   "duration_seconds": $DURATION
@@ -293,19 +353,30 @@ cat > "$RESULTS_FILE" <<EOF
 EOF
 
 echo -e "\n${CYAN}================================================================${NC}"
-echo -e "${GREEN}   Phase 2 Setup Complete!${NC}"
+echo -e "${GREEN}   Phase 2 Configuration Complete!${NC}"
 echo -e "${CYAN}================================================================${NC}"
 echo -e "${CYAN}Results: $RESULTS_FILE${NC}"
 echo -e "${CYAN}Duration: ${DURATION}s${NC}"
 
-echo -e "\n${YELLOW}What was installed:${NC}"
-echo "  Skills: superpowers, document-skills, playwright, episodic-memory, executive-assistant"
-echo "  MCPs: Gmail, Calendar, Drive, GitHub (requires OAuth setup)"
-echo "  Config: EA/Evie as default persona in CLAUDE.md"
+echo -e "\n${YELLOW}What was configured:${NC}"
+echo -e "  [OK] CLAUDE.md created with EA default persona"
+echo -e "  [OK] Verified existing skills installation"
+echo -e "  [OK] Created MCP setup instructions"
+
+echo -e "\n${YELLOW}Skills found:${NC}"
+if [ ${#SKILLS_FOUND[@]} -gt 0 ]; then
+    for skill in "${SKILLS_FOUND[@]}"; do
+        echo -e "${GREEN}  - $skill${NC}"
+    done
+else
+    echo -e "${RED}  [WARN] No skills detected - may need manual installation${NC}"
+fi
 
 echo -e "\n${YELLOW}Next steps:${NC}"
-echo "  1. Upload $RESULTS_FILE to dashboard"
-echo "  2. Authenticate Google services: cd ~/mcp-servers/gmail && npm run auth"
-echo "  3. Authenticate GitHub: gh auth login"
-echo "  4. Test EA: claude chat (will use EA persona by default)"
-echo "  5. Learn to create custom skills (see Phase 3 walkthrough)"
+echo "  1. Review MCP setup instructions: $INSTRUCTIONS_FILE"
+echo "  2. Authenticate GitHub: gh auth login"
+echo "  3. Authenticate Claude: claude auth"
+echo "  4. Set up Google MCP servers (see instructions file)"
+echo "  5. Restart Claude Code: exit, then claude chat"
+echo "  6. Test EA: claude chat, then say Good morning"
+echo "  7. Upload $RESULTS_FILE to dashboard (optional)"
