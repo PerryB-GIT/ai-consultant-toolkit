@@ -1,16 +1,41 @@
 ﻿<#
 .SYNOPSIS
     AI Consultant Toolkit - Windows Setup Script
+
+.PARAMETER SessionId
+    Optional session ID for dashboard integration. If not provided, generates a new one.
+
+.PARAMETER SkipDocker
+    Skip Docker Desktop installation.
+
+.EXAMPLE
+    .\setup-windows.ps1
+    Run with auto-generated session ID
+
+.EXAMPLE
+    .\setup-windows.ps1 -SessionId "abc123-def456"
+    Run with specific session ID from dashboard
 #>
 #Requires -RunAsAdministrator
-param([switch]$SkipDocker = $false)
+param(
+    [string]$SessionId = $null,
+    [switch]$SkipDocker = $false
+)
 $ErrorActionPreference = 'Continue'
 $startTime = Get-Date
 
 # ===== LIVE DASHBOARD SESSION =====
-$sessionId = [guid]::NewGuid().ToString()
-$dashboardUrl = "https://ai-consultant-toolkit.vercel.app/live/$sessionId"
-$apiUrl = "https://ai-consultant-toolkit.vercel.app/api/progress/$sessionId"
+# Use provided session ID or generate new one
+if ([string]::IsNullOrWhiteSpace($SessionId)) {
+    $script:sessionId = [guid]::NewGuid().ToString()
+    Write-Host "Generated new session ID: $script:sessionId" -ForegroundColor Gray
+} else {
+    $script:sessionId = $SessionId
+    Write-Host "Using provided session ID: $script:sessionId" -ForegroundColor Gray
+}
+
+# API endpoint
+$apiUrl = "https://ai-consultant-toolkit.vercel.app/api/progress/$script:sessionId"
 
 $results = @{
     os = ''
@@ -37,12 +62,16 @@ $toolStatus = @{}
 
 $osInfo = Get-CimInstance Win32_OperatingSystem
 $results.os = "$($osInfo.Caption) $($osInfo.Version)"
+
+Write-Host ''
 Write-Host '================================================================' -ForegroundColor Cyan
 Write-Host '   AI Consultant Toolkit - Windows Setup' -ForegroundColor Cyan
 Write-Host '================================================================' -ForegroundColor Cyan
-Write-Host '' -ForegroundColor Cyan
-Write-Host "📊 View live progress at:" -ForegroundColor Green
-Write-Host "   $dashboardUrl" -ForegroundColor Cyan
+Write-Host ''
+Write-Host '==================================================' -ForegroundColor Cyan
+Write-Host '  Watch Live Progress:' -ForegroundColor Green
+Write-Host '  https://ai-consultant-toolkit.vercel.app/setup' -ForegroundColor Yellow
+Write-Host '==================================================' -ForegroundColor Cyan
 Write-Host ''
 # ===== HELPER FUNCTIONS =====
 function Write-Step { param([string]$Message); Write-Host "`n> $Message" -ForegroundColor Yellow }
@@ -440,7 +469,11 @@ Write-Host "   Setup Complete!" -ForegroundColor Green
 Write-Host "================================================================" -ForegroundColor Cyan
 Write-Host "Results: $outputFile" -ForegroundColor Cyan
 Write-Host "Duration: $($results.duration_seconds)s" -ForegroundColor Cyan
-Write-Host "Live dashboard: $dashboardUrl" -ForegroundColor Cyan
+Write-Host ''
+Write-Host '==================================================' -ForegroundColor Cyan
+Write-Host '  Final Results:' -ForegroundColor Green
+Write-Host '  https://ai-consultant-toolkit.vercel.app/setup' -ForegroundColor Yellow
+Write-Host '==================================================' -ForegroundColor Cyan
 
 if ($results.restart_required) {
     Write-Host "`n[!] RESTART REQUIRED to complete WSL2 installation" -ForegroundColor Yellow
