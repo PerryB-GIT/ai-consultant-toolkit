@@ -1,7 +1,7 @@
 {
-  "name": "ai-consultant-toolkit",
-  "version": "1.0.0",
-  "description": "",
+  "name": "ai-setup-support-forge",
+  "version": "2.0.0",
+  "description": "Unified AI development environment setup platform with live progress tracking",
   "main": "index.js",
   "scripts": {
     "dev": "next dev",

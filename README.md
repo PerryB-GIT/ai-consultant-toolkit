@@ -1,6 +1,6 @@
-# AI Consultant Toolkit
+# AI Setup Support Forge
 
-Automated onboarding system for AI consultant environments. Streamlines setup with intelligent installation scripts and real-time validation.
+Unified AI development environment setup platform with live progress tracking and intelligent validation. Streamlines setup from zero to production-ready in one seamless flow.
 
 **Live Dashboard:** https://ai-consultant-toolkit.vercel.app
 
@@ -8,7 +8,17 @@ Automated onboarding system for AI consultant environments. Streamlines setup wi
 
 ## 🎯 Project Overview
 
-The AI Consultant Toolkit automates the complete setup process for AI consultant development environments, reducing onboarding time from hours to minutes. Perfect for:
+**AI Setup Support Forge** is a unified platform that automates the complete AI development environment setup process with live progress tracking. It provides a single-page experience that guides users from download to production-ready in one seamless flow.
+
+### Key Features:
+
+- **Unified Dashboard** - Single page tracks entire 11-step journey
+- **Live Progress Tracking** - Real-time updates during installation
+- **Persistent Sessions** - Resume setup across browser sessions
+- **Intelligent Error Handling** - Auto-suggested fixes for common issues
+- **Phase Management** - Seamless transition from Phase 1 to Phase 2
+
+Perfect for:
 
 - **New client onboarding** - Get clients up and running fast
 - **Environment replication** - Clone your exact setup to new machines
@@ -37,7 +47,17 @@ The AI Consultant Toolkit automates the complete setup process for AI consultant
 
 ## 🚀 Quick Start
 
-### For Users (Run Setup):
+### For Users (Unified Setup):
+
+1. **Visit the dashboard**: https://ai-consultant-toolkit.vercel.app
+2. **Choose your OS**: Click Windows or macOS
+3. **Run the downloaded script**: Script auto-downloads and guides you
+4. **Watch live progress**: Dashboard updates in real-time
+5. **Complete Phase 2**: Seamlessly transitions to configuration
+
+The unified dashboard handles everything on one page - no manual file uploads needed!
+
+### Legacy Method (Manual Upload):
 
 **Windows:**
 ```powershell
@@ -45,10 +65,6 @@ The AI Consultant Toolkit automates the complete setup process for AI consultant
 Set-ExecutionPolicy Bypass -Scope Process -Force
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/PerryB-GIT/ai-consultant-toolkit/main/scripts/windows/setup-windows.ps1" -OutFile "setup.ps1"
 .\setup.ps1
-
-# Upload results to dashboard
-# Visit: https://ai-consultant-toolkit.vercel.app/results
-# Upload: C:\Users\YourName\setup-results.json
 ```
 
 **macOS:**
@@ -57,10 +73,6 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/PerryB-GIT/ai-consulta
 curl -o setup.sh https://raw.githubusercontent.com/PerryB-GIT/ai-consultant-toolkit/main/scripts/mac/setup-mac.sh
 chmod +x setup.sh
 ./setup.sh
-
-# Upload results to dashboard
-# Visit: https://ai-consultant-toolkit.vercel.app/results
-# Upload: ~/setup-results.json
 ```
 
 ### For Developers (Local Testing):
