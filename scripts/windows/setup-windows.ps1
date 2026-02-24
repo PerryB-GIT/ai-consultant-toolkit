@@ -90,6 +90,16 @@ function Write-Failure { param([string]$Message); Write-Host "  [FAIL] $Message"
 function Add-Error { param([string]$Tool, [string]$Message); $results.errors += @{ tool = $Tool; message = $Message } }
 function Get-InstalledVersion { param([string]$Command, [string]$VersionArg = '--version'); try { $v = & $Command $VersionArg 2>&1 | Select-Object -First 1; if ($v -match '(\d+\.\d+\.\d+)') { return $matches[1] }; return $v.ToString().Trim() } catch { return $null } }
 function Refresh-EnvironmentPath { $env:Path = [System.Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path','User') }
+function Wait-ForCommand {
+    # Retry PATH refresh up to 6 times (6s) waiting for a newly-installed command to appear
+    param([string]$Command, [int]$MaxAttempts = 6)
+    for ($i = 0; $i -lt $MaxAttempts; $i++) {
+        Refresh-EnvironmentPath
+        if (Get-Command $Command -ErrorAction SilentlyContinue) { return $true }
+        Start-Sleep -Seconds 1
+    }
+    return $false
+}
 
 # ===== LIVE DASHBOARD FUNCTIONS =====
 function Send-Progress {
@@ -208,7 +218,7 @@ if (Get-Command git -ErrorAction SilentlyContinue) {
     Send-Progress -CurrentStep $currentStep -CompletedSteps $completedSteps -CurrentAction "Installing Git..." -ToolStatus $toolStatus -Errors $results.errors
     try {
         choco install git -y --no-progress
-        Refresh-EnvironmentPath
+        if (-not (Wait-ForCommand 'git')) { throw 'git not found in PATH after install' }
         $version = Get-InstalledVersion -Command 'git'
         if ($version) {
             Write-Success "Git installed ($version)"
@@ -244,7 +254,7 @@ if (Get-Command gh -ErrorAction SilentlyContinue) {
     Send-Progress -CurrentStep $currentStep -CompletedSteps $completedSteps -CurrentAction "Installing GitHub CLI..." -ToolStatus $toolStatus -Errors $results.errors
     try {
         choco install gh -y --no-progress
-        Refresh-EnvironmentPath
+        if (-not (Wait-ForCommand 'gh')) { throw 'gh not found in PATH after install' }
         $version = Get-InstalledVersion -Command 'gh'
         if ($version) {
             Write-Success "GitHub CLI installed ($version)"
@@ -280,7 +290,7 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
     Send-Progress -CurrentStep $currentStep -CompletedSteps $completedSteps -CurrentAction "Installing Node.js v20..." -ToolStatus $toolStatus -Errors $results.errors
     try {
         choco install nodejs-lts --version=20.18.0 -y --no-progress
-        Refresh-EnvironmentPath
+        if (-not (Wait-ForCommand 'node')) { throw 'node not found in PATH after install' }
         $version = Get-InstalledVersion -Command 'node'
         if ($version) {
             Write-Success "Node.js installed ($version)"
@@ -316,7 +326,7 @@ if (Get-Command python -ErrorAction SilentlyContinue) {
     Send-Progress -CurrentStep $currentStep -CompletedSteps $completedSteps -CurrentAction "Installing Python 3.11..." -ToolStatus $toolStatus -Errors $results.errors
     try {
         choco install python311 -y --no-progress
-        Refresh-EnvironmentPath
+        if (-not (Wait-ForCommand 'python')) { throw 'python not found in PATH after install' }
         $version = Get-InstalledVersion -Command 'python'
         if ($version) {
             Write-Success "Python installed ($version)"
@@ -482,21 +492,58 @@ try {
     # Clean up any prior clone attempt
     if (Test-Path $cloneDir) { Remove-Item -Recurse -Force $cloneDir }
 
-    Write-Info "Cloning: $SkillsRepoUrl"
-    git clone --depth 1 $SkillsRepoUrl $cloneDir 2>&1 | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw "git clone failed (exit $LASTEXITCODE). Ensure repo is accessible and gh auth login is complete." }
+    # ── Auth strategy ──────────────────────────────────────────────────────
+    # gh CLI handles HTTPS auth for private repos transparently.
+    # If gh is available and authenticated, use it. Otherwise fall back to
+    # plain git (works for public repos or when a credential manager is set up).
+    Write-Info "Cloning skills repo: $SkillsRepoUrl"
+    $cloneSuccess = $false
+
+    # Parse org/repo from URL for gh CLI
+    if ($SkillsRepoUrl -match 'github\.com[:/](.+/.+?)(?:\.git)?$') {
+        $repoSlug = $matches[1]
+    } else {
+        $repoSlug = $null
+    }
+
+    if ($repoSlug -and (Get-Command gh -ErrorAction SilentlyContinue)) {
+        $ghStatus = gh auth status 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            Write-Info "Using gh CLI for authenticated clone..."
+            # Set SSH key path explicitly so it works under Administrator context
+            $env:GIT_SSH_COMMAND = "ssh -i `"$env:USERPROFILE\.ssh\id_rsa`" -o IdentitiesOnly=yes -o StrictHostKeyChecking=no"
+            gh repo clone $repoSlug $cloneDir -- --depth 1 2>&1 | Out-Null
+            if ($LASTEXITCODE -eq 0) { $cloneSuccess = $true }
+        }
+    }
+
+    if (-not $cloneSuccess) {
+        Write-Info "Attempting git clone (requires repo to be public or credential manager configured)..."
+        git clone --depth 1 $SkillsRepoUrl $cloneDir 2>&1 | Out-Null
+        if ($LASTEXITCODE -eq 0) { $cloneSuccess = $true }
+    }
+
+    if (-not $cloneSuccess) {
+        throw "Could not clone skills repo. Run 'gh auth login' then re-run this script, or contact perry@support-forge.com."
+    }
 
     $sourceSkills = Join-Path $cloneDir 'skills'
-    if (-not (Test-Path $sourceSkills)) { throw "skills/ directory not found in repo root." }
+    if (-not (Test-Path $sourceSkills)) { throw "skills/ directory not found in cloned repo." }
 
     New-Item -ItemType Directory -Force -Path $skillsDir | Out-Null
 
     $skillCount = 0
-    Get-ChildItem -Directory $sourceSkills | ForEach-Object {
-        $dest = Join-Path $skillsDir $_.Name
+    $skillList = Get-ChildItem -Directory $sourceSkills
+    $skillTotal = $skillList.Count
+
+    foreach ($skillFolder in $skillList) {
+        $dest = Join-Path $skillsDir $skillFolder.Name
+        $skillCount++
+        Send-Progress -CurrentStep $currentStep -CompletedSteps $completedSteps `
+            -CurrentAction "Installing skill $skillCount/$skillTotal`: $($skillFolder.Name)" `
+            -ToolStatus $toolStatus -Errors $results.errors
         if (-not (Test-Path $dest)) {
-            Copy-Item -Recurse -Path $_.FullName -Destination $dest
-            $skillCount++
+            Copy-Item -Recurse -Path $skillFolder.FullName -Destination $dest
         }
     }
 
@@ -512,7 +559,9 @@ try {
     Add-Error -Tool 'skills' -Message $_.Exception.Message
     $results.results['skills'] = @{ status = 'ERROR'; version = $null; installed = $false }
     $toolStatus['skills'] = @{ status = 'error'; version = $null; error = $_.Exception.Message }
-    Add-ErrorLog -Tool 'skills' -Error $_.Exception.Message -SuggestedFix "Run 'gh auth login' first, then re-run with -SkillsRepoUrl parameter. Or run manually: git clone $SkillsRepoUrl && cd client-toolkit-template && bash install.sh" -Step $currentStep
+    Add-ErrorLog -Tool 'skills' -Error $_.Exception.Message `
+        -SuggestedFix "Run 'gh auth login' in a new terminal, then re-run this script. If the repo is private ensure you have access." `
+        -Step $currentStep
 }
 Send-Progress -CurrentStep $currentStep -CompletedSteps $completedSteps -CurrentAction "Skills install complete" -ToolStatus $toolStatus -Errors $results.errors
 
@@ -523,8 +572,8 @@ $results.duration_seconds = [math]::Round($duration, 2)
 $outputFile = Join-Path $env:USERPROFILE 'setup-results.json'
 $results | ConvertTo-Json -Depth 10 | Out-File -FilePath $outputFile -Encoding utf8
 
-# Final progress update - mark as complete
-Send-Progress -CurrentStep 10 -CompletedSteps $completedSteps -CurrentAction "Setup complete!" -ToolStatus $toolStatus -Errors $results.errors -Complete $true
+# Final progress update - mark as complete (step 11 = Complete in dashboard)
+Send-Progress -CurrentStep 11 -CompletedSteps $completedSteps -CurrentAction "Setup complete!" -ToolStatus $toolStatus -Errors $results.errors -Complete $true
 
 Write-Host "`n================================================================" -ForegroundColor Cyan
 Write-Host "   Setup Complete!" -ForegroundColor Green

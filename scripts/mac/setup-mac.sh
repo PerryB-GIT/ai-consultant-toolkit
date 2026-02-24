@@ -147,17 +147,41 @@ else
 fi
 
 # ── Skills Install ──────────────────────────────────────────────────────────
+# Skills step runs outside set -e scope so a clone failure doesn't abort the whole script.
 log_info "Installing Claude Code skills..."
 SKILLS_DIR="$HOME/.claude/skills"
 CLONE_DIR="$(mktemp -d)/support-forge-toolkit"
 SKILLS_INSTALLED=0
+SKILLS_OK=false
 
 if ! command -v git &>/dev/null; then
     log_error "git not found — skills install skipped"
     add_result "skills" "ERR" "null" "false"
 else
-    log_info "Cloning: $SKILLS_REPO_URL"
-    if git clone --depth 1 "$SKILLS_REPO_URL" "$CLONE_DIR" 2>/dev/null; then
+    # ── Auth strategy ──────────────────────────────────────────────────────
+    # Use gh CLI authenticated clone for private repos if gh is authed.
+    # Fall back to plain git clone (works for public repos or with macOS Keychain).
+    CLONE_SUCCESS=false
+    REPO_SLUG=""
+    if [[ "$SKILLS_REPO_URL" =~ github\.com[:/](.+/.+?)(\.git)?$ ]]; then
+        REPO_SLUG="${BASH_REMATCH[1]}"
+    fi
+
+    if [ -n "$REPO_SLUG" ] && command -v gh &>/dev/null && gh auth status &>/dev/null 2>&1; then
+        log_info "Using gh CLI for authenticated clone..."
+        if gh repo clone "$REPO_SLUG" "$CLONE_DIR" -- --depth 1 2>/dev/null; then
+            CLONE_SUCCESS=true
+        fi
+    fi
+
+    if [ "$CLONE_SUCCESS" = false ]; then
+        log_info "Attempting git clone..."
+        if git clone --depth 1 "$SKILLS_REPO_URL" "$CLONE_DIR" 2>/dev/null; then
+            CLONE_SUCCESS=true
+        fi
+    fi
+
+    if [ "$CLONE_SUCCESS" = true ]; then
         SOURCE_SKILLS="$CLONE_DIR/skills"
         if [ -d "$SOURCE_SKILLS" ]; then
             mkdir -p "$SKILLS_DIR"
@@ -171,12 +195,13 @@ else
             rm -rf "$CLONE_DIR"
             log_success "$SKILLS_INSTALLED skills installed to $SKILLS_DIR"
             add_result "skills" "OK" "${SKILLS_INSTALLED} skills" "true"
+            SKILLS_OK=true
         else
-            log_error "skills/ directory not found in repo"
+            log_error "skills/ directory not found in cloned repo"
             add_result "skills" "ERR" "null" "false"
         fi
     else
-        log_error "git clone failed. Run 'gh auth login' first or check repo URL."
+        log_error "Could not clone skills repo. Run 'gh auth login' then re-run this script."
         add_result "skills" "ERR" "null" "false"
     fi
 fi
@@ -214,7 +239,13 @@ echo -e "${GREEN}Setup complete!${NC} Results: $RESULTS_FILE"
 echo "Duration: ${DURATION}s"
 echo ""
 echo "Next steps:"
-echo "  1. Run: source ~/.zprofile"
-echo "  2. Auth: gh auth login"
-echo "  3. Auth: claude auth (set your Anthropic API key)"
-echo "  4. Open a new terminal and type: claude"
+echo "  1. Run: source ~/.zprofile  (reload PATH)"
+echo "  2. Run: gh auth login        (authenticate with GitHub)"
+echo "  3. Run: claude               (open Claude Code and set your API key)"
+
+if [ "$SKILLS_OK" = false ]; then
+    echo ""
+    echo -e "${YELLOW}[!] Skills were not installed.${NC}"
+    echo "    After completing steps 1-2, re-run:"
+    echo "    bash setup-mac.sh --skills-repo $SKILLS_REPO_URL"
+fi
