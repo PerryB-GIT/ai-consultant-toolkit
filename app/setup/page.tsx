@@ -107,18 +107,19 @@ export default function SetupPage() {
   const formatTime = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
 
   const getInstallCommand = (os: 'windows' | 'mac') => {
+    const sid = sessionId || 'loading';
     if (os === 'windows') {
       return [
         `# Run this in PowerShell as Administrator`,
         `Set-ExecutionPolicy Bypass -Scope Process -Force`,
         `Invoke-WebRequest -Uri "https://raw.githubusercontent.com/PerryB-GIT/ai-consultant-toolkit/main/scripts/windows/setup-windows.ps1" -OutFile "$env:TEMP\\setup.ps1"`,
-        `& "$env:TEMP\\setup.ps1"`,
+        `& "$env:TEMP\\setup.ps1" -SessionId "${sid}"`,
       ].join('\n');
     }
     return [
       `# Run this in Terminal`,
       `curl -fsSL https://raw.githubusercontent.com/PerryB-GIT/ai-consultant-toolkit/main/scripts/mac/setup-mac.sh -o /tmp/setup.sh`,
-      `bash /tmp/setup.sh`,
+      `bash /tmp/setup.sh --session-id "${sid}"`,
     ].join('\n');
   };
 
@@ -219,7 +220,8 @@ export default function SetupPage() {
                   </div>
                   <button
                     onClick={() => handleCopyCommand('windows')}
-                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg transition-colors"
+                    disabled={!sessionId}
+                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors"
                   >
                     {copied && selectedOs === 'windows' ? '✓ Copied!' : 'Copy Windows Command'}
                   </button>
@@ -242,7 +244,8 @@ export default function SetupPage() {
                   </div>
                   <button
                     onClick={() => handleCopyCommand('mac')}
-                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg transition-colors"
+                    disabled={!sessionId}
+                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors"
                   >
                     {copied && selectedOs === 'mac' ? '✓ Copied!' : 'Copy Mac Command'}
                   </button>

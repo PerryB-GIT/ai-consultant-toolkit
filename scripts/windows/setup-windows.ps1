@@ -87,7 +87,7 @@ function Write-Step { param([string]$Message); Write-Host "`n> $Message" -Foregr
 function Write-Success { param([string]$Message); Write-Host "  [OK] $Message" -ForegroundColor Green }
 function Write-Info { param([string]$Message); Write-Host "  [INFO] $Message" -ForegroundColor Cyan }
 function Write-Failure { param([string]$Message); Write-Host "  [FAIL] $Message" -ForegroundColor Red }
-function Add-Error { param([string]$Tool, [string]$Message); $results.errors += @{ tool = $Tool; message = $Message } }
+function Add-Error { param([string]$Tool, [string]$Message, [string]$Fix = ''); $results.errors += @{ tool = $Tool; error = $Message; suggestedFix = $Fix } }
 function Get-InstalledVersion { param([string]$Command, [string]$VersionArg = '--version'); try { $v = & $Command $VersionArg 2>&1 | Select-Object -First 1; if ($v -match '(\d+\.\d+\.\d+)') { return $matches[1] }; return $v.ToString().Trim() } catch { return $null } }
 function Refresh-EnvironmentPath { $env:Path = [System.Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path','User') }
 function Wait-ForCommand {
@@ -136,33 +136,6 @@ function Send-Progress {
     }
 }
 
-function Add-ErrorLog {
-    param(
-        [string]$Tool,
-        [string]$Error,
-        [string]$SuggestedFix,
-        [int]$Step
-    )
-
-    $body = @{
-        tool = $Tool
-        error = $Error
-        suggestedFix = $SuggestedFix
-        timestamp = (Get-Date -Format 'o')
-        step = $Step
-    } | ConvertTo-Json
-
-    try {
-        Invoke-RestMethod -Uri "$script:apiUrl/log" `
-            -Method POST `
-            -Body $body `
-            -ContentType 'application/json' `
-            -TimeoutSec 5 `
-            -ErrorAction SilentlyContinue | Out-Null
-    } catch {
-        # Silently fail
-    }
-}
 
 # ===== CHOCOLATEY =====
 $currentStep = 1
@@ -194,10 +167,9 @@ if (Get-Command choco -ErrorAction SilentlyContinue) {
         }
     } catch {
         Write-Failure "Chocolatey install failed: $_"
-        Add-Error -Tool 'chocolatey' -Message $_.Exception.Message
+        Add-Error -Tool 'chocolatey' -Message $_.Exception.Message -Fix "Run PowerShell as Administrator and ensure internet connection is stable"
         $results.results.chocolatey = @{ status = 'ERROR'; version = $null; installed = $false }
         $toolStatus['chocolatey'] = @{ status = 'error'; version = $null; error = $_.Exception.Message }
-        Add-ErrorLog -Tool 'chocolatey' -Error $_.Exception.Message -SuggestedFix "Run PowerShell as Administrator and ensure internet connection is stable" -Step $currentStep
     }
 }
 Send-Progress -CurrentStep $currentStep -CompletedSteps $completedSteps -CurrentAction "Chocolatey complete" -ToolStatus $toolStatus -Errors $results.errors
@@ -230,10 +202,9 @@ if (Get-Command git -ErrorAction SilentlyContinue) {
         }
     } catch {
         Write-Failure "Git install failed: $_"
-        Add-Error -Tool 'git' -Message $_.Exception.Message
+        Add-Error -Tool 'git' -Message $_.Exception.Message -Fix "Try manual install from git-scm.com or ensure Chocolatey is working"
         $results.results.git = @{ status = 'ERROR'; version = $null; installed = $false }
         $toolStatus['git'] = @{ status = 'error'; version = $null; error = $_.Exception.Message }
-        Add-ErrorLog -Tool 'git' -Error $_.Exception.Message -SuggestedFix "Try manual install from git-scm.com or ensure Chocolatey is working" -Step $currentStep
     }
 }
 Send-Progress -CurrentStep $currentStep -CompletedSteps $completedSteps -CurrentAction "Git complete" -ToolStatus $toolStatus -Errors $results.errors
@@ -266,10 +237,9 @@ if (Get-Command gh -ErrorAction SilentlyContinue) {
         }
     } catch {
         Write-Failure "GitHub CLI install failed: $_"
-        Add-Error -Tool 'github_cli' -Message $_.Exception.Message
+        Add-Error -Tool 'github_cli' -Message $_.Exception.Message -Fix "Try manual install from cli.github.com"
         $results.results.github_cli = @{ status = 'ERROR'; version = $null; installed = $false }
         $toolStatus['github_cli'] = @{ status = 'error'; version = $null; error = $_.Exception.Message }
-        Add-ErrorLog -Tool 'github_cli' -Error $_.Exception.Message -SuggestedFix "Try manual install from cli.github.com" -Step $currentStep
     }
 }
 Send-Progress -CurrentStep $currentStep -CompletedSteps $completedSteps -CurrentAction "GitHub CLI complete" -ToolStatus $toolStatus -Errors $results.errors
@@ -302,10 +272,9 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
         }
     } catch {
         Write-Failure "Node.js install failed: $_"
-        Add-Error -Tool 'nodejs' -Message $_.Exception.Message
+        Add-Error -Tool 'nodejs' -Message $_.Exception.Message -Fix "Try manual install from nodejs.org (download LTS installer)"
         $results.results.nodejs = @{ status = 'ERROR'; version = $null; installed = $false }
         $toolStatus['nodejs'] = @{ status = 'error'; version = $null; error = $_.Exception.Message }
-        Add-ErrorLog -Tool 'nodejs' -Error $_.Exception.Message -SuggestedFix "Try manual install from nodejs.org (download LTS installer)" -Step $currentStep
     }
 }
 Send-Progress -CurrentStep $currentStep -CompletedSteps $completedSteps -CurrentAction "Node.js complete" -ToolStatus $toolStatus -Errors $results.errors
@@ -338,10 +307,9 @@ if (Get-Command python -ErrorAction SilentlyContinue) {
         }
     } catch {
         Write-Failure "Python install failed: $_"
-        Add-Error -Tool 'python' -Message $_.Exception.Message
+        Add-Error -Tool 'python' -Message $_.Exception.Message -Fix "Try manual install from python.org (download 3.11.x installer, check 'Add to PATH')"
         $results.results.python = @{ status = 'ERROR'; version = $null; installed = $false }
         $toolStatus['python'] = @{ status = 'error'; version = $null; error = $_.Exception.Message }
-        Add-ErrorLog -Tool 'python' -Error $_.Exception.Message -SuggestedFix "Try manual install from python.org (download 3.11.x installer, check 'Add to PATH')" -Step $currentStep
     }
 }
 Send-Progress -CurrentStep $currentStep -CompletedSteps $completedSteps -CurrentAction "Python complete" -ToolStatus $toolStatus -Errors $results.errors
@@ -372,10 +340,9 @@ if ($wslStatus -like '*Default Version: 2*' -or $wslStatus -like '*WSL version: 
         Write-Host '  [WARN] You must restart Windows to complete WSL2 installation' -ForegroundColor Yellow
     } catch {
         Write-Failure "WSL2 install failed: $_"
-        Add-Error -Tool 'wsl2' -Message $_.Exception.Message
+        Add-Error -Tool 'wsl2' -Message $_.Exception.Message -Fix "Restart required. Run script again after reboot. If fails repeatedly, enable virtualization in BIOS."
         $results.results.wsl2 = @{ status = 'ERROR'; version = $null; installed = $false; restart_required = $false }
         $toolStatus['wsl2'] = @{ status = 'error'; version = $null; error = $_.Exception.Message }
-        Add-ErrorLog -Tool 'wsl2' -Error $_.Exception.Message -SuggestedFix "Restart required. Run script again after reboot. If fails repeatedly, enable virtualization in BIOS." -Step $currentStep
     }
 }
 Send-Progress -CurrentStep $currentStep -CompletedSteps $completedSteps -CurrentAction "WSL2 complete" -ToolStatus $toolStatus -Errors $results.errors
@@ -416,10 +383,9 @@ if (Get-Command claude -ErrorAction SilentlyContinue) {
         }
     } catch {
         Write-Failure "Claude Code install failed: $_"
-        Add-Error -Tool 'claude' -Message $_.Exception.Message
+        Add-Error -Tool 'claude' -Message $_.Exception.Message -Fix "Ensure Node.js is installed. Try: npm install -g @anthropic-ai/claude-code manually"
         $results.results.claude = @{ status = 'ERROR'; version = $null; installed = $false }
         $toolStatus['claude'] = @{ status = 'error'; version = $null; error = $_.Exception.Message }
-        Add-ErrorLog -Tool 'claude' -Error $_.Exception.Message -SuggestedFix "Ensure Node.js is installed. Try: npm install -g @anthropic-ai/claude-code manually" -Step $currentStep
     }
 }
 Send-Progress -CurrentStep $currentStep -CompletedSteps $completedSteps -CurrentAction "Claude Code complete" -ToolStatus $toolStatus -Errors $results.errors
@@ -464,10 +430,9 @@ if ($SkipDocker) {
             }
         } catch {
             Write-Failure "Docker Desktop install failed: $_"
-            Add-Error -Tool 'docker' -Message $_.Exception.Message
+            Add-Error -Tool 'docker' -Message $_.Exception.Message -Fix "Ensure WSL2 is installed and working. Manual download: docker.com/products/docker-desktop"
             $results.results.docker = @{ status = 'ERROR'; version = $null; installed = $false }
             $toolStatus['docker'] = @{ status = 'error'; version = $null; error = $_.Exception.Message }
-            Add-ErrorLog -Tool 'docker' -Error $_.Exception.Message -SuggestedFix "Ensure WSL2 is installed and working. Manual download: docker.com/products/docker-desktop" -Step $currentStep
         }
     }
 }
@@ -556,12 +521,9 @@ try {
     $completedSteps += 9
 } catch {
     Write-Failure "Skills install failed: $_"
-    Add-Error -Tool 'skills' -Message $_.Exception.Message
+    Add-Error -Tool 'skills' -Message $_.Exception.Message -Fix "Run 'gh auth login' in a new terminal, then re-run this script. If the repo is private ensure you have access."
     $results.results['skills'] = @{ status = 'ERROR'; version = $null; installed = $false }
     $toolStatus['skills'] = @{ status = 'error'; version = $null; error = $_.Exception.Message }
-    Add-ErrorLog -Tool 'skills' -Error $_.Exception.Message `
-        -SuggestedFix "Run 'gh auth login' in a new terminal, then re-run this script. If the repo is private ensure you have access." `
-        -Step $currentStep
 }
 Send-Progress -CurrentStep $currentStep -CompletedSteps $completedSteps -CurrentAction "Skills install complete" -ToolStatus $toolStatus -Errors $results.errors
 
@@ -591,12 +553,12 @@ if ($results.restart_required) {
 }
 
 Write-Host "`nNext steps:" -ForegroundColor Yellow
-Write-Host "  1. Upload $outputFile to dashboard"
-Write-Host "  2. Restart PowerShell or run: refreshenv"
-Write-Host "  3. Authenticate: gh auth login"
-Write-Host "  4. Authenticate: claude auth"
+Write-Host "  1. Open a new PowerShell (regular, not Admin) and run: gh auth login"
+Write-Host "  2. Open a new terminal and run: claude"
+Write-Host "     Enter your Anthropic API key when prompted"
+Write-Host "  3. Inside Claude Code, type: /writing-emails"
 if ($results.results.docker.status -eq 'OK' -and $results.results.docker.installed) {
-    Write-Host "  5. Start Docker Desktop from Start Menu"
+    Write-Host "  4. Start Docker Desktop from Start Menu"
 }
 
 return $results
