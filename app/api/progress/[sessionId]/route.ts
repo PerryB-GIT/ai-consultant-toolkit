@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 // Progress data schema
 const ToolStatusSchema = z.object({
-  status: z.enum(['pending', 'installing', 'success', 'error']),
+  status: z.enum(['pending', 'installing', 'success', 'error', 'skipped']),
   version: z.string().optional(),
   error: z.string().optional(),
 });
