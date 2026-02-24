@@ -1,10 +1,9 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import ProgressBar from '@/components/ProgressBar';
 
 interface ToolStatus {
-  status: 'pending' | 'installing' | 'success' | 'error';
+  status: 'pending' | 'installing' | 'success' | 'error' | 'skipped';
   version?: string;
   error?: string;
 }
@@ -27,45 +26,38 @@ interface ProgressData {
   complete: boolean;
 }
 
-const TOOL_NAMES: Record<string, string> = {
+const TOOL_LABELS: Record<string, string> = {
   chocolatey: 'Chocolatey',
   homebrew: 'Homebrew',
-  node: 'Node.js',
   git: 'Git',
-  gh: 'GitHub CLI',
-  claude: 'Claude Code',
-  npm: 'npm',
+  github_cli: 'GitHub CLI',
+  nodejs: 'Node.js',
   python: 'Python',
-  pip: 'pip',
-  wsl: 'WSL2',
+  wsl2: 'WSL2',
+  claude: 'Claude Code',
   docker: 'Docker Desktop',
   skills: 'Claude Skills',
 };
 
-const ALL_STEPS = [
-  { id: 1, name: 'Prerequisites', description: 'Check Node.js, npm, git' },
-  { id: 2, name: 'OS Detection', description: 'Detect macOS vs Windows' },
-  { id: 3, name: 'Installing Tools', description: 'Install CLI tools (gh, aws, gcloud)' },
-  { id: 4, name: 'CLI Authentication', description: 'Authenticate with services' },
-  { id: 5, name: 'Security Setup', description: 'Install credential scanners' },
-  { id: 6, name: 'MCP Configuration', description: 'Set up MCP servers' },
-  { id: 7, name: 'Google Services', description: 'OAuth for Gmail, Calendar, Drive' },
-  { id: 8, name: 'Voice Assistant', description: 'Install Evie voice system' },
-  { id: 9, name: 'Install Skills', description: 'Clone and install Claude Code skills' },
-  { id: 10, name: 'Documentation', description: 'Generate setup report' },
-  { id: 11, name: 'Complete', description: 'Finish and redirect to dashboard' },
+// What actually gets installed — client-friendly descriptions
+const WHAT_GETS_INSTALLED = [
+  { icon: '📦', label: 'Package Manager', detail: 'Chocolatey (Windows) or Homebrew (Mac)' },
+  { icon: '🔧', label: 'Git & GitHub CLI', detail: 'Version control and repo access' },
+  { icon: '⚡', label: 'Node.js', detail: 'Required to run Claude Code' },
+  { icon: '🤖', label: 'Claude Code', detail: 'Your AI assistant' },
+  { icon: '🧠', label: 'Claude Skills', detail: '38 pre-built skills for your workflows' },
 ];
 
-export default function UnifiedSetupPage() {
+export default function SetupPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [progress, setProgress] = useState<ProgressData | null>(null);
   const [isPolling, setIsPolling] = useState(false);
-  const [setupStarted, setSetupStarted] = useState(false);
-  const [phase, setPhase] = useState<'download' | 'phase1' | 'phase2' | 'complete'>('download');
-  const [os, setOs] = useState<'windows' | 'mac' | null>(null);
+  const [phase, setPhase] = useState<'landing' | 'running' | 'complete'>('landing');
+  const [selectedOs, setSelectedOs] = useState<'windows' | 'mac' | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
+  const [copied, setCopied] = useState(false);
 
-  // Generate or retrieve session ID
+  // Session ID
   useEffect(() => {
     let sid = localStorage.getItem('setup-session-id');
     if (!sid) {
@@ -74,499 +66,428 @@ export default function UnifiedSetupPage() {
     }
     setSessionId(sid);
 
-    // Check if setup already started
-    const started = localStorage.getItem('setup-started');
-    if (started === 'true') {
-      setSetupStarted(true);
-      setIsPolling(true);
-      const savedPhase = localStorage.getItem('setup-phase') as typeof phase;
-      if (savedPhase) setPhase(savedPhase);
-    }
+    const savedPhase = localStorage.getItem('setup-phase');
+    if (savedPhase === 'running') { setPhase('running'); setIsPolling(true); }
+    if (savedPhase === 'complete') setPhase('complete');
+
+    const savedOs = localStorage.getItem('setup-os') as 'windows' | 'mac' | null;
+    if (savedOs) setSelectedOs(savedOs);
   }, []);
 
-  // Elapsed time counter
+  // Elapsed timer
   useEffect(() => {
-    if (!setupStarted) return;
-
-    const interval = setInterval(() => {
-      setElapsedTime((prev) => prev + 1);
-    }, 1000);
-
+    if (phase !== 'running') return;
+    const interval = setInterval(() => setElapsedTime(t => t + 1), 1000);
     return () => clearInterval(interval);
-  }, [setupStarted]);
+  }, [phase]);
 
-  // Poll for progress updates
+  // Poll progress
   const fetchProgress = useCallback(async () => {
     if (!sessionId || !isPolling) return;
-
     try {
-      const response = await fetch(`/api/progress/${sessionId}`);
-
-      if (response.status === 404) {
-        // Session not found yet - setup hasn't started sending progress
-        return;
-      }
-
-      if (!response.ok) {
-        console.error('Failed to fetch progress');
-        return;
-      }
-
-      const data: ProgressData = await response.json();
+      const res = await fetch(`/api/progress/${sessionId}`);
+      if (!res.ok) return;
+      const data: ProgressData = await res.json();
       setProgress(data);
-
-      // Update phase based on progress
-      if (data.phase === 'phase1' && phase === 'download') {
-        setPhase('phase1');
-        localStorage.setItem('setup-phase', 'phase1');
-      } else if (data.phase === 'phase2' && phase === 'phase1') {
-        setPhase('phase2');
-        localStorage.setItem('setup-phase', 'phase2');
-      }
-
-      // Check if complete
       if (data.complete) {
         setPhase('complete');
         setIsPolling(false);
         localStorage.setItem('setup-phase', 'complete');
         localStorage.removeItem('setup-started');
       }
-    } catch (error) {
-      console.error('Error fetching progress:', error);
-    }
-  }, [sessionId, isPolling, phase]);
+    } catch { /* silent */ }
+  }, [sessionId, isPolling]);
 
-  // Set up polling interval
   useEffect(() => {
     if (!isPolling) return;
-
     const interval = setInterval(fetchProgress, 2000);
     return () => clearInterval(interval);
   }, [isPolling, fetchProgress]);
 
-  // Handle OS selection and download
-  const handleDownload = (selectedOs: 'windows' | 'mac') => {
-    setOs(selectedOs);
-    setSetupStarted(true);
-    setIsPolling(true);
-    localStorage.setItem('setup-started', 'true');
-    localStorage.setItem('setup-phase', 'download');
+  const formatTime = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
 
-    // Trigger download
-    const url = selectedOs === 'windows'
-      ? 'https://raw.githubusercontent.com/PerryB-GIT/ai-consultant-toolkit/main/scripts/windows/setup-windows.ps1'
-      : 'https://raw.githubusercontent.com/PerryB-GIT/ai-consultant-toolkit/main/scripts/mac/setup-mac.sh';
-
-    window.location.href = url;
-  };
-
-  // Format elapsed time
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  // Get status icon
-  const getStatusIcon = (status: ToolStatus['status']) => {
-    switch (status) {
-      case 'success':
-        return <span className="text-green-400 text-xl">✓</span>;
-      case 'error':
-        return <span className="text-red-400 text-xl">✗</span>;
-      case 'installing':
-        return <span className="text-primary text-xl animate-spin inline-block">⚙️</span>;
-      case 'pending':
-      default:
-        return <span className="text-gray-600 text-xl">○</span>;
+  const getInstallCommand = (os: 'windows' | 'mac') => {
+    if (os === 'windows') {
+      return [
+        `# Run this in PowerShell as Administrator`,
+        `Set-ExecutionPolicy Bypass -Scope Process -Force`,
+        `Invoke-WebRequest -Uri "https://raw.githubusercontent.com/PerryB-GIT/ai-consultant-toolkit/main/scripts/windows/setup-windows.ps1" -OutFile "$env:TEMP\\setup.ps1"`,
+        `& "$env:TEMP\\setup.ps1"`,
+      ].join('\n');
     }
+    return [
+      `# Run this in Terminal`,
+      `curl -fsSL https://raw.githubusercontent.com/PerryB-GIT/ai-consultant-toolkit/main/scripts/mac/setup-mac.sh -o /tmp/setup.sh`,
+      `bash /tmp/setup.sh`,
+    ].join('\n');
   };
 
-  // Calculate stats
+  const handleCopyCommand = (os: 'windows' | 'mac') => {
+    navigator.clipboard.writeText(getInstallCommand(os));
+    setSelectedOs(os);
+    setCopied(true);
+    setPhase('running');
+    setIsPolling(true);
+    localStorage.setItem('setup-phase', 'running');
+    localStorage.setItem('setup-os', os);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Progress stats
   const toolEntries = progress ? Object.entries(progress.toolStatus) : [];
-  const successCount = toolEntries.filter(([_, status]) => status.status === 'success').length;
-  const errorCount = toolEntries.filter(([_, status]) => status.status === 'error').length;
-  const installingCount = toolEntries.filter(([_, status]) => status.status === 'installing').length;
+  const successCount = toolEntries.filter(([, s]) => s.status === 'success').length;
+  const errorCount = toolEntries.filter(([, s]) => s.status === 'error').length;
+  const totalTools = toolEntries.length;
+  const pct = totalTools > 0 ? Math.round((successCount / totalTools) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-background text-white">
+    <div className="min-h-screen bg-[#050508] text-white">
+
       {/* Header */}
-      <header className="border-b border-gray-800 bg-background-card sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center">
-                <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-white">AI Setup Support Forge</h1>
-                <p className="text-gray-400 text-sm">
-                  {phase === 'download' && 'Download and run the setup script to begin'}
-                  {phase === 'phase1' && 'Phase 1: Installing Development Tools'}
-                  {phase === 'phase2' && 'Phase 2: Configuration & MCP Setup'}
-                  {phase === 'complete' && 'Setup Complete - Production Ready!'}
-                </p>
+      <header className="border-b border-gray-800 bg-[#0f0f14]">
+        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center">
+              <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <div>
+              <div className="font-bold text-white">Support Forge</div>
+              <div className="text-xs text-gray-400">AI Setup</div>
+            </div>
+          </div>
+          {phase === 'running' && (
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-400">{formatTime(elapsedTime)}</span>
+              <div className="flex items-center gap-2 px-3 py-1 bg-green-900/30 border border-green-700 rounded-full">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                </span>
+                <span className="text-green-400 text-xs font-medium">LIVE</span>
               </div>
             </div>
-
-            {/* Status indicator */}
-            {setupStarted && phase !== 'complete' && (
-              <div className="flex items-center gap-4">
-                <div className="text-sm text-gray-400">
-                  {formatTime(elapsedTime)} elapsed
-                </div>
-                <div className="flex items-center gap-2 px-3 py-1 bg-green-900/20 border border-green-700 rounded-full">
-                  <span className="relative flex h-3 w-3">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                  </span>
-                  <span className="text-green-400 text-sm font-medium">LIVE</span>
-                </div>
-              </div>
-            )}
-
-            {phase === 'complete' && (
-              <div className="px-4 py-2 bg-green-900/20 border border-green-700 rounded-lg">
-                <span className="text-green-400 font-medium">✓ Production Ready</span>
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Progress Bar */}
-        <div className="mb-8">
-          <ProgressBar
-            currentStep={progress?.currentStep || (phase === 'download' ? 1 : 0)}
-            completedSteps={progress?.completedSteps || []}
-            totalSteps={11}
-          />
-        </div>
+      <main className="max-w-5xl mx-auto px-6 py-10">
 
-        {/* Session ID Card */}
-        {sessionId && (
-          <div className="mb-6 p-4 bg-gray-900/50 border border-gray-800 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm text-gray-400 mb-1">Setup Session ID</div>
-                <div className="font-mono text-sm text-white">{sessionId}</div>
-              </div>
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(window.location.href);
-                }}
-                className="px-3 py-1.5 bg-primary/10 hover:bg-primary/20 border border-primary/30 rounded text-sm text-primary transition-colors"
-              >
-                Copy Link
-              </button>
-            </div>
-          </div>
-        )}
+        {/* ── LANDING ── */}
+        {phase === 'landing' && (
+          <div className="space-y-10">
 
-        {/* Download Phase */}
-        {phase === 'download' && (
-          <div className="space-y-6">
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-white mb-2">Choose Your Operating System</h2>
-              <p className="text-gray-400">Download and run the setup script for your platform</p>
+            {/* Hero */}
+            <div className="text-center space-y-3">
+              <h1 className="text-4xl font-bold text-white">Get Claude Code running in minutes</h1>
+              <p className="text-gray-400 text-lg max-w-xl mx-auto">
+                One command installs everything — then your AI assistant is ready to use.
+              </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-              {/* Windows Card */}
-              <button
-                onClick={() => handleDownload('windows')}
-                className="p-8 bg-background-card border-2 border-gray-800 hover:border-primary rounded-lg transition-all group text-left"
-              >
-                <div className="flex items-center gap-4 mb-4">
-                  <svg className="w-12 h-12 text-gray-400 group-hover:text-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                  <div>
-                    <h3 className="text-xl font-bold text-white">Windows</h3>
-                    <p className="text-sm text-gray-400">Windows 10/11</p>
-                  </div>
-                </div>
-                <div className="space-y-2 text-sm text-gray-300">
-                  <div className="flex items-center gap-2">
-                    <span className="text-primary">✓</span>
-                    <span>PowerShell script</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-primary">✓</span>
-                    <span>Chocolatey package manager</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-primary">✓</span>
-                    <span>WSL2 & Docker Desktop</span>
-                  </div>
-                </div>
-              </button>
-
-              {/* macOS Card */}
-              <button
-                onClick={() => handleDownload('mac')}
-                className="p-8 bg-background-card border-2 border-gray-800 hover:border-primary rounded-lg transition-all group text-left"
-              >
-                <div className="flex items-center gap-4 mb-4">
-                  <svg className="w-12 h-12 text-gray-400 group-hover:text-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
-                  </svg>
-                  <div>
-                    <h3 className="text-xl font-bold text-white">macOS</h3>
-                    <p className="text-sm text-gray-400">macOS 10.15+</p>
-                  </div>
-                </div>
-                <div className="space-y-2 text-sm text-gray-300">
-                  <div className="flex items-center gap-2">
-                    <span className="text-primary">✓</span>
-                    <span>Bash shell script</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-primary">✓</span>
-                    <span>Homebrew package manager</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-primary">✓</span>
-                    <span>Docker Desktop for Mac</span>
-                  </div>
-                </div>
-              </button>
-            </div>
-
-            {/* Instructions */}
-            <div className="mt-12 p-6 bg-primary/10 border border-primary/30 rounded-lg">
-              <h3 className="text-lg font-semibold text-white mb-4">After downloading:</h3>
-              <ol className="space-y-3 text-gray-300">
-                <li className="flex items-start gap-3">
-                  <span className="text-primary font-bold">1.</span>
-                  <div>
-                    <span className="font-medium">Run the script</span>
-                    <div className="text-sm text-gray-400 mt-1">
-                      Windows: Right-click → Run with PowerShell (as Administrator)<br />
-                      macOS: Terminal → chmod +x setup-mac.sh → ./setup-mac.sh
-                    </div>
-                  </div>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="text-primary font-bold">2.</span>
-                  <div>
-                    <span className="font-medium">Watch live progress</span>
-                    <div className="text-sm text-gray-400 mt-1">
-                      This page will automatically update as the script installs tools
-                    </div>
-                  </div>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="text-primary font-bold">3.</span>
-                  <div>
-                    <span className="font-medium">Complete configuration</span>
-                    <div className="text-sm text-gray-400 mt-1">
-                      After Phase 1 completes, Phase 2 will begin automatically
-                    </div>
-                  </div>
-                </li>
-              </ol>
-            </div>
-          </div>
-        )}
-
-        {/* Phase 1: Tool Installation */}
-        {phase === 'phase1' && (
-          <div className="space-y-8">
-            {/* Current Action Banner */}
-            {progress && (
-              <div className="p-6 bg-primary/10 border border-primary/30 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="animate-pulse text-2xl">▶️</div>
-                  <div>
-                    <div className="text-sm text-gray-400 mb-1">Current Action</div>
-                    <div className="text-xl font-semibold text-white">{progress.currentAction}</div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Stats Summary */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <StatCard label="Total Tools" value={toolEntries.length} color="text-gray-400" />
-              <StatCard label="Success" value={successCount} color="text-green-400" />
-              <StatCard label="Installing" value={installingCount} color="text-primary" />
-              <StatCard label="Errors" value={errorCount} color="text-red-400" />
-            </div>
-
-            {/* Tool Status Grid */}
-            <div>
-              <h2 className="text-xl font-semibold text-white mb-4">Installation Status</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {toolEntries.map(([toolKey, status]) => (
-                  <div
-                    key={toolKey}
-                    className={`
-                      p-4 rounded-lg border transition-all duration-200
-                      ${status.status === 'success'
-                        ? 'bg-green-900/10 border-green-700'
-                        : status.status === 'error'
-                        ? 'bg-red-900/10 border-red-700'
-                        : status.status === 'installing'
-                        ? 'bg-primary/10 border-primary/30 animate-pulse'
-                        : 'bg-gray-900/50 border-gray-700'
-                      }
-                    `}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-semibold text-white">
-                        {TOOL_NAMES[toolKey] || toolKey}
-                      </span>
-                      {getStatusIcon(status.status)}
-                    </div>
-                    {status.version && (
-                      <div className="text-sm text-gray-400">v{status.version}</div>
-                    )}
-                    {status.error && (
-                      <div className="text-sm text-red-400 mt-2">{status.error}</div>
-                    )}
+            {/* What gets installed */}
+            <div className="bg-[#0f0f14] border border-gray-800 rounded-xl p-6">
+              <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">What gets installed</h2>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                {WHAT_GETS_INSTALLED.map(item => (
+                  <div key={item.label} className="text-center space-y-1">
+                    <div className="text-2xl">{item.icon}</div>
+                    <div className="text-sm font-medium text-white">{item.label}</div>
+                    <div className="text-xs text-gray-500">{item.detail}</div>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Errors Section */}
-            {progress && progress.errors.length > 0 && (
-              <div className="p-6 bg-red-900/20 border border-red-700 rounded-lg">
-                <h3 className="text-xl font-semibold text-red-400 mb-4 flex items-center gap-2">
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                  </svg>
-                  Installation Errors
-                </h3>
+            {/* OS choice + copy command */}
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold text-white">Choose your operating system</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                {/* Windows */}
+                <div className="bg-[#0f0f14] border border-gray-800 rounded-xl p-6 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-900/40 border border-blue-700/50 rounded-lg flex items-center justify-center text-xl">🪟</div>
+                    <div>
+                      <div className="font-semibold text-white">Windows 10 / 11</div>
+                      <div className="text-xs text-gray-400">PowerShell as Administrator</div>
+                    </div>
+                  </div>
+                  <div className="bg-gray-900 rounded-lg p-3 font-mono text-xs text-gray-300 leading-relaxed overflow-x-auto whitespace-pre">
+                    {getInstallCommand('windows')}
+                  </div>
+                  <button
+                    onClick={() => handleCopyCommand('windows')}
+                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg transition-colors"
+                  >
+                    {copied && selectedOs === 'windows' ? '✓ Copied!' : 'Copy Windows Command'}
+                  </button>
+                  <p className="text-xs text-gray-500 text-center">
+                    Open PowerShell as Administrator → paste → press Enter
+                  </p>
+                </div>
+
+                {/* Mac */}
+                <div className="bg-[#0f0f14] border border-gray-800 rounded-xl p-6 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gray-800 border border-gray-600 rounded-lg flex items-center justify-center text-xl">🍎</div>
+                    <div>
+                      <div className="font-semibold text-white">macOS</div>
+                      <div className="text-xs text-gray-400">Terminal (any shell)</div>
+                    </div>
+                  </div>
+                  <div className="bg-gray-900 rounded-lg p-3 font-mono text-xs text-gray-300 leading-relaxed overflow-x-auto whitespace-pre">
+                    {getInstallCommand('mac')}
+                  </div>
+                  <button
+                    onClick={() => handleCopyCommand('mac')}
+                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg transition-colors"
+                  >
+                    {copied && selectedOs === 'mac' ? '✓ Copied!' : 'Copy Mac Command'}
+                  </button>
+                  <p className="text-xs text-gray-500 text-center">
+                    Open Terminal → paste → press Enter
+                  </p>
+                </div>
+
+              </div>
+            </div>
+
+            {/* After running */}
+            <div className="bg-indigo-900/20 border border-indigo-700/40 rounded-xl p-6">
+              <h3 className="font-semibold text-white mb-3">After you run the command</h3>
+              <ol className="space-y-2 text-sm text-gray-300">
+                <li className="flex items-start gap-3">
+                  <span className="text-indigo-400 font-bold mt-0.5">1.</span>
+                  <span>The script runs in your terminal — this page updates live as each tool installs</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-indigo-400 font-bold mt-0.5">2.</span>
+                  <span>When it finishes, run <code className="px-1.5 py-0.5 bg-gray-800 rounded font-mono text-indigo-300">gh auth login</code> to connect GitHub</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-indigo-400 font-bold mt-0.5">3.</span>
+                  <span>Open a new terminal and type <code className="px-1.5 py-0.5 bg-gray-800 rounded font-mono text-indigo-300">claude</code> — enter your API key when prompted</span>
+                </li>
+              </ol>
+            </div>
+
+            {/* Already running */}
+            <div className="text-center">
+              <button
+                onClick={() => { setPhase('running'); setIsPolling(true); localStorage.setItem('setup-phase', 'running'); }}
+                className="text-sm text-gray-500 hover:text-gray-300 underline underline-offset-2"
+              >
+                Already running the script? Watch live progress →
+              </button>
+            </div>
+
+          </div>
+        )}
+
+        {/* ── RUNNING ── */}
+        {phase === 'running' && (
+          <div className="space-y-6">
+
+            {/* Current action */}
+            <div className="bg-[#0f0f14] border border-indigo-700/50 rounded-xl p-6">
+              {progress ? (
                 <div className="space-y-4">
-                  {progress.errors.map((err, i) => (
-                    <div key={i} className="bg-red-900/30 border border-red-800 rounded-lg p-4">
-                      <div className="flex items-start gap-3">
-                        <span className="text-red-400 text-xl flex-shrink-0">⚠️</span>
-                        <div className="flex-1">
-                          <div className="font-semibold text-red-300 mb-1">{err.tool}</div>
-                          <div className="text-sm text-red-400 mb-2">{err.error}</div>
-                          <div className="text-sm text-gray-400 bg-gray-900/50 rounded p-2">
-                            <span className="text-green-400 font-medium">Fix: </span>
-                            {err.suggestedFix}
-                          </div>
-                        </div>
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-gray-400">Installing...</div>
+                    <div className="text-sm text-gray-400">{successCount}/{totalTools} complete</div>
+                  </div>
+                  {/* Progress bar */}
+                  <div className="w-full bg-gray-800 rounded-full h-2">
+                    <div
+                      className="bg-indigo-500 h-2 rounded-full transition-all duration-500"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
+                    <span className="text-white font-medium">{progress.currentAction}</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3 text-gray-400">
+                  <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                  <span>Waiting for script to start... Make sure you ran the command in your terminal.</span>
+                </div>
+              )}
+            </div>
+
+            {/* Tool grid */}
+            {toolEntries.length > 0 && (
+              <div>
+                <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Installation Status</h2>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {toolEntries.map(([key, status]) => (
+                    <div
+                      key={key}
+                      className={`
+                        p-4 rounded-lg border transition-all duration-300
+                        ${status.status === 'success' ? 'bg-green-900/10 border-green-800' :
+                          status.status === 'error' ? 'bg-red-900/10 border-red-800' :
+                          status.status === 'installing' ? 'bg-indigo-900/20 border-indigo-700 animate-pulse' :
+                          status.status === 'skipped' ? 'bg-gray-900/30 border-gray-800' :
+                          'bg-[#0f0f14] border-gray-800'}
+                      `}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-medium text-white">{TOOL_LABELS[key] || key}</span>
+                        <span className="text-base">
+                          {status.status === 'success' ? '✓' :
+                           status.status === 'error' ? '✗' :
+                           status.status === 'installing' ? '⚙' :
+                           status.status === 'skipped' ? '—' : '○'}
+                        </span>
                       </div>
+                      {status.version && (
+                        <div className="text-xs text-gray-400">{status.version}</div>
+                      )}
+                      {status.status === 'error' && status.error && (
+                        <div className="text-xs text-red-400 mt-1 truncate">{status.error}</div>
+                      )}
                     </div>
                   ))}
                 </div>
               </div>
             )}
-          </div>
-        )}
 
-        {/* Phase 2: Configuration */}
-        {phase === 'phase2' && (
-          <div className="space-y-8">
-            <div className="text-center p-8 bg-primary/10 border border-primary rounded-lg">
-              <div className="text-4xl mb-4">🎉</div>
-              <h2 className="text-2xl font-bold text-white mb-2">Phase 1 Complete!</h2>
-              <p className="text-gray-400 mb-4">
-                All development tools installed successfully. Starting Phase 2: Configuration & MCP Setup
-              </p>
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-900/20 border border-green-700 rounded-lg">
-                <span className="text-green-400">Phase 2 in progress...</span>
-              </div>
-            </div>
-
-            {/* Configuration Steps */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {['EA Persona', 'CLAUDE.md', 'MCP Servers', 'Skills Installation'].map((step, i) => (
-                <div key={i} className="p-6 bg-background-card border border-gray-800 rounded-lg">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center text-primary font-bold">
-                      {i + 1}
+            {/* Errors */}
+            {progress && progress.errors.length > 0 && (
+              <div className="bg-red-900/10 border border-red-800 rounded-xl p-6 space-y-4">
+                <h3 className="font-semibold text-red-400">Issues Found</h3>
+                {progress.errors.map((err, i) => (
+                  <div key={i} className="bg-red-900/20 border border-red-800/50 rounded-lg p-4">
+                    <div className="font-medium text-red-300 text-sm mb-1">{TOOL_LABELS[err.tool] || err.tool} failed</div>
+                    <div className="text-xs text-red-400 mb-2">{err.error}</div>
+                    <div className="text-xs text-gray-300 bg-gray-900/50 rounded p-2">
+                      <span className="text-green-400 font-medium">Fix: </span>{err.suggestedFix}
                     </div>
-                    <h3 className="text-lg font-semibold text-white">{step}</h3>
                   </div>
-                  <div className="text-sm text-gray-400">
-                    Configuring {step.toLowerCase()}...
-                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Not seeing updates */}
+            {!progress && (
+              <div className="text-center py-4 space-y-3">
+                <p className="text-sm text-gray-500">Not seeing any updates after 30 seconds?</p>
+                <div className="flex flex-col items-center gap-2 text-sm text-gray-400">
+                  <span>Make sure the command is running in your terminal</span>
+                  <button
+                    onClick={() => setPhase('landing')}
+                    className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2"
+                  >
+                    Go back and copy the command again
+                  </button>
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
+
           </div>
         )}
 
-        {/* Complete Phase */}
+        {/* ── COMPLETE ── */}
         {phase === 'complete' && (
-          <div className="max-w-3xl mx-auto">
-            <div className="text-center p-12 bg-green-900/10 border-2 border-green-700 rounded-lg">
-              <div className="text-6xl mb-6">✅</div>
-              <h2 className="text-4xl font-bold text-white mb-4">Setup Complete!</h2>
-              <p className="text-xl text-gray-300 mb-8">
-                Your AI development environment is now production-ready
-              </p>
+          <div className="max-w-2xl mx-auto space-y-8">
 
-              {/* Success Stats */}
-              <div className="grid grid-cols-3 gap-6 mb-8">
-                <div className="p-4 bg-background-card border border-gray-800 rounded-lg">
-                  <div className="text-3xl font-bold text-green-400 mb-1">{successCount}</div>
-                  <div className="text-sm text-gray-400">Tools Installed</div>
+            <div className="text-center space-y-3">
+              <div className="text-5xl">✅</div>
+              <h1 className="text-3xl font-bold text-white">Setup Complete</h1>
+              <p className="text-gray-400">Everything is installed and ready to use.</p>
+            </div>
+
+            {/* Stats */}
+            {progress && (
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-[#0f0f14] border border-gray-800 rounded-xl p-4 text-center">
+                  <div className="text-2xl font-bold text-green-400">{successCount}</div>
+                  <div className="text-xs text-gray-400 mt-1">Tools Installed</div>
                 </div>
-                <div className="p-4 bg-background-card border border-gray-800 rounded-lg">
-                  <div className="text-3xl font-bold text-primary mb-1">11</div>
-                  <div className="text-sm text-gray-400">Steps Completed</div>
+                <div className="bg-[#0f0f14] border border-gray-800 rounded-xl p-4 text-center">
+                  <div className="text-2xl font-bold text-red-400">{errorCount}</div>
+                  <div className="text-xs text-gray-400 mt-1">Errors</div>
                 </div>
-                <div className="p-4 bg-background-card border border-gray-800 rounded-lg">
-                  <div className="text-3xl font-bold text-white mb-1">{formatTime(elapsedTime)}</div>
-                  <div className="text-sm text-gray-400">Total Time</div>
+                <div className="bg-[#0f0f14] border border-gray-800 rounded-xl p-4 text-center">
+                  <div className="text-2xl font-bold text-white">{formatTime(elapsedTime)}</div>
+                  <div className="text-xs text-gray-400 mt-1">Total Time</div>
                 </div>
               </div>
+            )}
 
-              {/* Next Steps */}
-              <div className="text-left bg-background-card border border-gray-800 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-white mb-4">Next Steps:</h3>
-                <ol className="space-y-3 text-gray-300">
-                  <li className="flex items-start gap-3">
-                    <span className="text-green-400 font-bold">1.</span>
-                    <span>Open a terminal and run <code className="px-2 py-1 bg-gray-900 rounded text-primary">claude</code> to start your AI assistant</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="text-green-400 font-bold">2.</span>
-                    <span>Try <code className="px-2 py-1 bg-gray-900 rounded text-primary">/executive-assistant</code> to activate Evie</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="text-green-400 font-bold">3.</span>
-                    <span>Check out the documentation at <code className="px-2 py-1 bg-gray-900 rounded text-primary">~/.claude/README.md</code></span>
-                  </li>
-                </ol>
+            {/* Next steps */}
+            <div className="bg-[#0f0f14] border border-gray-800 rounded-xl p-6 space-y-4">
+              <h3 className="font-semibold text-white">Next steps</h3>
+              <ol className="space-y-4">
+                <li className="flex items-start gap-4">
+                  <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold flex-shrink-0">1</div>
+                  <div>
+                    <div className="font-medium text-white text-sm">Authenticate with GitHub</div>
+                    <div className="text-xs text-gray-400 mt-1">Open a terminal and run:</div>
+                    <code className="text-xs bg-gray-900 text-indigo-300 px-2 py-1 rounded mt-1 inline-block font-mono">gh auth login</code>
+                  </div>
+                </li>
+                <li className="flex items-start gap-4">
+                  <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold flex-shrink-0">2</div>
+                  <div>
+                    <div className="font-medium text-white text-sm">Open Claude Code</div>
+                    <div className="text-xs text-gray-400 mt-1">Open a new terminal and run:</div>
+                    <code className="text-xs bg-gray-900 text-indigo-300 px-2 py-1 rounded mt-1 inline-block font-mono">claude</code>
+                    <div className="text-xs text-gray-400 mt-1">Enter your Anthropic API key when prompted.</div>
+                  </div>
+                </li>
+                <li className="flex items-start gap-4">
+                  <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold flex-shrink-0">3</div>
+                  <div>
+                    <div className="font-medium text-white text-sm">Try your first skill</div>
+                    <div className="text-xs text-gray-400 mt-1">Inside Claude Code, type:</div>
+                    <code className="text-xs bg-gray-900 text-indigo-300 px-2 py-1 rounded mt-1 inline-block font-mono">/writing-emails</code>
+                  </div>
+                </li>
+              </ol>
+            </div>
+
+            {/* Errors on complete */}
+            {errorCount > 0 && progress && (
+              <div className="bg-yellow-900/10 border border-yellow-700/50 rounded-xl p-5 space-y-3">
+                <h3 className="font-semibold text-yellow-400 text-sm">{errorCount} item{errorCount > 1 ? 's' : ''} need attention</h3>
+                {progress.errors.map((err, i) => (
+                  <div key={i} className="text-sm">
+                    <span className="text-yellow-300 font-medium">{TOOL_LABELS[err.tool] || err.tool}: </span>
+                    <span className="text-gray-400">{err.suggestedFix}</span>
+                  </div>
+                ))}
               </div>
+            )}
 
-              {/* Reset Button */}
+            {/* Need help */}
+            <div className="text-center text-sm text-gray-500">
+              Need help? Contact{' '}
+              <a href="mailto:perry@support-forge.com" className="text-indigo-400 hover:text-indigo-300">
+                perry@support-forge.com
+              </a>
+            </div>
+
+            <div className="text-center">
               <button
                 onClick={() => {
-                  localStorage.removeItem('setup-session-id');
-                  localStorage.removeItem('setup-started');
-                  localStorage.removeItem('setup-phase');
+                  localStorage.clear();
                   window.location.reload();
                 }}
-                className="mt-6 px-6 py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                className="text-xs text-gray-600 hover:text-gray-400 underline underline-offset-2"
               >
-                Start New Setup
+                Set up another machine
               </button>
             </div>
+
           </div>
         )}
-      </main>
-    </div>
-  );
-}
 
-function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
-  return (
-    <div className="bg-background-card border border-gray-800 rounded-lg p-6">
-      <div className={`text-3xl font-bold ${color} mb-2`}>{value}</div>
-      <div className="text-sm text-gray-400">{label}</div>
+      </main>
     </div>
   );
 }
