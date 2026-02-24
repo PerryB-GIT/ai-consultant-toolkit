@@ -8,6 +8,10 @@
 .PARAMETER SkipDocker
     Skip Docker Desktop installation.
 
+.PARAMETER SkillsRepoUrl
+    HTTPS URL of the client's private skills repo. Defaults to the Support Forge template.
+    Example: https://github.com/PerryB-GIT/eyam-toolkit.git
+
 .EXAMPLE
     .\setup-windows.ps1
     Run with auto-generated session ID
@@ -15,11 +19,16 @@
 .EXAMPLE
     .\setup-windows.ps1 -SessionId "abc123-def456"
     Run with specific session ID from dashboard
+
+.EXAMPLE
+    .\setup-windows.ps1 -SkillsRepoUrl "https://github.com/PerryB-GIT/eyam-toolkit.git"
+    Run with a client-specific skills repo
 #>
 #Requires -RunAsAdministrator
 param(
     [string]$SessionId = $null,
-    [switch]$SkipDocker = $false
+    [switch]$SkipDocker = $false,
+    [string]$SkillsRepoUrl = 'https://github.com/PerryB-GIT/client-toolkit-template.git'
 )
 $ErrorActionPreference = 'Continue'
 $startTime = Get-Date
@@ -454,6 +463,59 @@ if ($SkipDocker) {
 }
 Send-Progress -CurrentStep $currentStep -CompletedSteps $completedSteps -CurrentAction "Docker complete" -ToolStatus $toolStatus -Errors $results.errors
 
+# ===== SKILLS INSTALL =====
+$currentStep = 9
+Send-Progress -CurrentStep $currentStep -CompletedSteps $completedSteps -CurrentAction "Installing Claude Code skills..." -ToolStatus $toolStatus -Errors $results.errors
+Write-Step 'Installing Claude Code skills...'
+
+$skillsDir = Join-Path $env:USERPROFILE '.claude\skills'
+$cloneDir  = Join-Path $env:TEMP 'support-forge-toolkit'
+
+$toolStatus['skills'] = @{ status = 'installing'; version = $null }
+Send-Progress -CurrentStep $currentStep -CompletedSteps $completedSteps -CurrentAction "Cloning skills repo..." -ToolStatus $toolStatus -Errors $results.errors
+
+try {
+    if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+        throw 'git not found. Ensure Git was installed in a previous step.'
+    }
+
+    # Clean up any prior clone attempt
+    if (Test-Path $cloneDir) { Remove-Item -Recurse -Force $cloneDir }
+
+    Write-Info "Cloning: $SkillsRepoUrl"
+    git clone --depth 1 $SkillsRepoUrl $cloneDir 2>&1 | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "git clone failed (exit $LASTEXITCODE). Ensure repo is accessible and gh auth login is complete." }
+
+    $sourceSkills = Join-Path $cloneDir 'skills'
+    if (-not (Test-Path $sourceSkills)) { throw "skills/ directory not found in repo root." }
+
+    New-Item -ItemType Directory -Force -Path $skillsDir | Out-Null
+
+    $skillCount = 0
+    Get-ChildItem -Directory $sourceSkills | ForEach-Object {
+        $dest = Join-Path $skillsDir $_.Name
+        if (-not (Test-Path $dest)) {
+            Copy-Item -Recurse -Path $_.FullName -Destination $dest
+            $skillCount++
+        }
+    }
+
+    # Clean up temp clone
+    Remove-Item -Recurse -Force $cloneDir -ErrorAction SilentlyContinue
+
+    Write-Success "$skillCount skills installed to $skillsDir"
+    $results.results['skills'] = @{ status = 'OK'; version = "$skillCount skills"; installed = $true }
+    $toolStatus['skills'] = @{ status = 'success'; version = "$skillCount skills" }
+    $completedSteps += 9
+} catch {
+    Write-Failure "Skills install failed: $_"
+    Add-Error -Tool 'skills' -Message $_.Exception.Message
+    $results.results['skills'] = @{ status = 'ERROR'; version = $null; installed = $false }
+    $toolStatus['skills'] = @{ status = 'error'; version = $null; error = $_.Exception.Message }
+    Add-ErrorLog -Tool 'skills' -Error $_.Exception.Message -SuggestedFix "Run 'gh auth login' first, then re-run with -SkillsRepoUrl parameter. Or run manually: git clone $SkillsRepoUrl && cd client-toolkit-template && bash install.sh" -Step $currentStep
+}
+Send-Progress -CurrentStep $currentStep -CompletedSteps $completedSteps -CurrentAction "Skills install complete" -ToolStatus $toolStatus -Errors $results.errors
+
 # ===== GENERATE RESULTS JSON =====
 $duration = (Get-Date).Subtract($startTime).TotalSeconds
 $results.duration_seconds = [math]::Round($duration, 2)
@@ -462,7 +524,7 @@ $outputFile = Join-Path $env:USERPROFILE 'setup-results.json'
 $results | ConvertTo-Json -Depth 10 | Out-File -FilePath $outputFile -Encoding utf8
 
 # Final progress update - mark as complete
-Send-Progress -CurrentStep 9 -CompletedSteps $completedSteps -CurrentAction "Setup complete!" -ToolStatus $toolStatus -Errors $results.errors -Complete $true
+Send-Progress -CurrentStep 10 -CompletedSteps $completedSteps -CurrentAction "Setup complete!" -ToolStatus $toolStatus -Errors $results.errors -Complete $true
 
 Write-Host "`n================================================================" -ForegroundColor Cyan
 Write-Host "   Setup Complete!" -ForegroundColor Green

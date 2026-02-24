@@ -39,6 +39,7 @@ const TOOL_NAMES: Record<string, string> = {
   pip: 'pip',
   wsl: 'WSL2',
   docker: 'Docker Desktop',
+  skills: 'Claude Skills',
 };
 
 const ALL_STEPS = [
@@ -50,7 +51,7 @@ const ALL_STEPS = [
   { id: 6, name: 'MCP Configuration', description: 'Set up MCP servers' },
   { id: 7, name: 'Google Services', description: 'OAuth for Gmail, Calendar, Drive' },
   { id: 8, name: 'Voice Assistant', description: 'Install Evie voice system' },
-  { id: 9, name: 'Testing Setup', description: 'Run smoke tests' },
+  { id: 9, name: 'Install Skills', description: 'Clone and install Claude Code skills' },
   { id: 10, name: 'Documentation', description: 'Generate setup report' },
   { id: 11, name: 'Complete', description: 'Finish and redirect to dashboard' },
 ];

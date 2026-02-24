@@ -1,4 +1,7 @@
 #!/bin/bash
+# Usage: bash setup-mac.sh [--skills-repo <url>]
+#   --skills-repo   HTTPS URL of the client's private skills repo
+#                   Defaults to the Support Forge template repo
 set -e
 
 RED='\033[0;31m'
@@ -10,6 +13,16 @@ NC='\033[0m'
 START_TIME=$(date +%s)
 RESULTS_FILE="$HOME/setup-results.json"
 ERRORS=()
+
+SKILLS_REPO_URL="https://github.com/PerryB-GIT/client-toolkit-template.git"
+
+# Parse optional --skills-repo argument
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --skills-repo) SKILLS_REPO_URL="$2"; shift 2 ;;
+        *) shift ;;
+    esac
+done
 
 OS_VERSION=$(sw_vers -productVersion)
 ARCH=$(uname -m)
@@ -133,13 +146,48 @@ else
     add_result "docker" "skipped" "null" "false"
 fi
 
+# ── Skills Install ──────────────────────────────────────────────────────────
+log_info "Installing Claude Code skills..."
+SKILLS_DIR="$HOME/.claude/skills"
+CLONE_DIR="$(mktemp -d)/support-forge-toolkit"
+SKILLS_INSTALLED=0
+
+if ! command -v git &>/dev/null; then
+    log_error "git not found — skills install skipped"
+    add_result "skills" "ERR" "null" "false"
+else
+    log_info "Cloning: $SKILLS_REPO_URL"
+    if git clone --depth 1 "$SKILLS_REPO_URL" "$CLONE_DIR" 2>/dev/null; then
+        SOURCE_SKILLS="$CLONE_DIR/skills"
+        if [ -d "$SOURCE_SKILLS" ]; then
+            mkdir -p "$SKILLS_DIR"
+            for skill_dir in "$SOURCE_SKILLS"/*/; do
+                skill_name="$(basename "$skill_dir")"
+                if [ ! -d "$SKILLS_DIR/$skill_name" ]; then
+                    cp -r "$skill_dir" "$SKILLS_DIR/$skill_name"
+                    SKILLS_INSTALLED=$((SKILLS_INSTALLED + 1))
+                fi
+            done
+            rm -rf "$CLONE_DIR"
+            log_success "$SKILLS_INSTALLED skills installed to $SKILLS_DIR"
+            add_result "skills" "OK" "${SKILLS_INSTALLED} skills" "true"
+        else
+            log_error "skills/ directory not found in repo"
+            add_result "skills" "ERR" "null" "false"
+        fi
+    else
+        log_error "git clone failed. Run 'gh auth login' first or check repo URL."
+        add_result "skills" "ERR" "null" "false"
+    fi
+fi
+
 # Generate JSON
 END_TIME=$(date +%s)
 DURATION=$((END_TIME - START_TIME))
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 RESULTS_JSON="{"
-for tool in homebrew git github_cli nodejs python claude docker; do
+for tool in homebrew git github_cli nodejs python claude docker skills; do
     [[ -n "${TOOL_RESULTS[$tool]}" ]] && RESULTS_JSON+="\"$tool\": ${TOOL_RESULTS[$tool]},"
 done
 RESULTS_JSON="${RESULTS_JSON%,}}"
@@ -166,7 +214,7 @@ echo -e "${GREEN}Setup complete!${NC} Results: $RESULTS_FILE"
 echo "Duration: ${DURATION}s"
 echo ""
 echo "Next steps:"
-echo "  1. Upload $RESULTS_FILE to dashboard"
-echo "  2. Run: source ~/.zprofile"
-echo "  3. Auth: gh auth login"
-echo "  4. Auth: claude auth"
+echo "  1. Run: source ~/.zprofile"
+echo "  2. Auth: gh auth login"
+echo "  3. Auth: claude auth (set your Anthropic API key)"
+echo "  4. Open a new terminal and type: claude"
