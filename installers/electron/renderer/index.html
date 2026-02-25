@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'">
+  <title>Support Forge AI Setup</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- SCREEN: WELCOME -->
+  <div id="screen-welcome" class="screen active">
+    <div class="header">
+      <div class="logo">&#9889; Support Forge</div>
+      <h1>AI Setup</h1>
+      <p class="subtitle">Set up Claude Code and all required tools on your computer.</p>
+    </div>
+    <div class="tool-list">
+      <div class="tool-item">&#10003; Homebrew / Chocolatey (package manager)</div>
+      <div class="tool-item">&#10003; Git &amp; GitHub CLI</div>
+      <div class="tool-item">&#10003; Node.js</div>
+      <div class="tool-item">&#10003; Claude Code (AI assistant)</div>
+      <div class="tool-item">&#10003; 38 pre-built AI skills</div>
+    </div>
+    <p class="note">A browser window will open so you can watch the installation progress live.</p>
+    <div class="actions">
+      <button id="btn-start" class="btn-primary">Start Installation</button>
+    </div>
+  </div>
+
+  <!-- SCREEN: PROGRESS -->
+  <div id="screen-progress" class="screen">
+    <div class="header">
+      <div class="logo">&#9889; Support Forge</div>
+      <h1>Installing...</h1>
+      <p class="subtitle" id="session-display"></p>
+    </div>
+    <div id="log-box" class="log-box"></div>
+    <div class="actions">
+      <div class="spinner" id="spinner"></div>
+      <p class="note" id="progress-note">This will take 5-10 minutes. Watch the live dashboard in your browser.</p>
+    </div>
+  </div>
+
+  <!-- SCREEN: FINISH -->
+  <div id="screen-finish" class="screen">
+    <div class="header">
+      <div class="logo">&#9889; Support Forge</div>
+      <h1 id="finish-title">Installation Complete!</h1>
+      <p class="subtitle" id="finish-subtitle">Claude Code is ready to use.</p>
+    </div>
+    <div class="tool-list" id="finish-steps">
+      <div class="tool-item">1. Open a new terminal</div>
+      <div class="tool-item">2. Type: <code>claude</code></div>
+      <div class="tool-item">3. Enter your Anthropic API key when prompted</div>
+    </div>
+    <div class="actions">
+      <button id="btn-dashboard" class="btn-secondary">Open Dashboard</button>
+      <button id="btn-close" class="btn-primary">Close</button>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
