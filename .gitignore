@@ -69,3 +69,10 @@ pids
 # Temporary files
 tmp/
 temp/
+
+# Installer binaries (built artifacts)
+installers/**/*.exe
+installers/**/*.pkg
+installers/**/*.dmg
+installers/mac/flat/
+installers/mac/root/
