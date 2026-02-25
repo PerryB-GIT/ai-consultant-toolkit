@@ -238,6 +238,20 @@ function SetupPageInner() {
                   <p className="text-xs text-gray-500 text-center">
                     Open PowerShell as Administrator → paste → press Enter
                   </p>
+                  <div className="mt-3 text-center">
+                    <span className="text-zinc-500 text-xs">— or —</span>
+                  </div>
+                  <a
+                    href="https://github.com/PerryB-GIT/ai-consultant-toolkit/releases/latest/download/SupportForge-AI-Setup.exe"
+                    className="mt-2 flex items-center justify-center gap-2 w-full py-2 px-4 rounded-lg border border-zinc-700 text-zinc-300 hover:border-indigo-500 hover:text-white transition-colors text-sm"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Download .exe installer
+                  </a>
                 </div>
 
                 {/* Mac */}
@@ -262,6 +276,20 @@ function SetupPageInner() {
                   <p className="text-xs text-gray-500 text-center">
                     Open Terminal → paste → press Enter
                   </p>
+                  <div className="mt-3 text-center">
+                    <span className="text-zinc-500 text-xs">— or —</span>
+                  </div>
+                  <a
+                    href="https://github.com/PerryB-GIT/ai-consultant-toolkit/releases/latest/download/SupportForge-AI-Setup.pkg"
+                    className="mt-2 flex items-center justify-center gap-2 w-full py-2 px-4 rounded-lg border border-zinc-700 text-zinc-300 hover:border-indigo-500 hover:text-white transition-colors text-sm"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Download .pkg installer
+                  </a>
                 </div>
 
               </div>
