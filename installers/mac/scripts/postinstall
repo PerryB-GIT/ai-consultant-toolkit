@@ -1,0 +1,36 @@
+#!/bin/bash
+# postinstall — runs as root after package install
+# Opens dashboard and kicks off setup-mac.sh
+
+set -e
+
+# Generate session ID
+SESSION_ID="setup-$(date +%s)-$(LC_ALL=C tr -dc 'a-z0-9' </dev/urandom 2>/dev/null | head -c 6 || echo 'mac001')"
+
+DASHBOARD_URL="https://ai-consultant-toolkit.vercel.app/setup?session=${SESSION_ID}"
+SCRIPT_URL="https://raw.githubusercontent.com/PerryB-GIT/ai-consultant-toolkit/main/scripts/mac/setup-mac.sh"
+
+# Open dashboard in default browser as the actual logged-in user (not root)
+LOGGED_IN_USER=$(stat -f "%Su" /dev/console 2>/dev/null || echo "")
+if [[ -n "$LOGGED_IN_USER" && "$LOGGED_IN_USER" != "root" ]]; then
+    sudo -u "$LOGGED_IN_USER" open "$DASHBOARD_URL" 2>/dev/null || open "$DASHBOARD_URL" 2>/dev/null || true
+else
+    open "$DASHBOARD_URL" 2>/dev/null || true
+fi
+
+# Download setup script
+TMP_SCRIPT="/tmp/support-forge-setup-${SESSION_ID}.sh"
+curl -fsSL "$SCRIPT_URL" -o "$TMP_SCRIPT"
+chmod +x "$TMP_SCRIPT"
+
+# Run as logged-in user so Homebrew works correctly (refuses to run as root)
+if [[ -n "$LOGGED_IN_USER" && "$LOGGED_IN_USER" != "root" ]]; then
+    sudo -u "$LOGGED_IN_USER" bash "$TMP_SCRIPT" --session-id "$SESSION_ID"
+else
+    bash "$TMP_SCRIPT" --session-id "$SESSION_ID"
+fi
+
+# Cleanup
+rm -f "$TMP_SCRIPT"
+
+exit 0

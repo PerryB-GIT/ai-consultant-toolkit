@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="2">
+    <title>Support Forge AI Setup</title>
+    <organization>com.supportforge</organization>
+    <domains enable_localSystem="true"/>
+    <options customize="never" require-scripts="true" hostArchitectures="x86_64,arm64"/>
+    <welcome file="welcome.html" mime-type="text/html"/>
+    <pkg-ref id="com.supportforge.aisetup"/>
+    <choices-outline>
+        <line choice="default">
+            <line choice="com.supportforge.aisetup"/>
+        </line>
+    </choices-outline>
+    <choice id="default"/>
+    <choice id="com.supportforge.aisetup" visible="false">
+        <pkg-ref id="com.supportforge.aisetup"/>
+    </choice>
+    <pkg-ref id="com.supportforge.aisetup" version="1.0.0" onConclusion="none">SupportForge-AI-Setup-component.pkg</pkg-ref>
+</installer-gui-script>
