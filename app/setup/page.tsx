@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 interface ToolStatus {
   status: 'pending' | 'installing' | 'success' | 'error' | 'skipped';
@@ -48,7 +49,8 @@ const WHAT_GETS_INSTALLED = [
   { icon: '🧠', label: 'Claude Skills', detail: '38 pre-built skills for your workflows' },
 ];
 
-export default function SetupPage() {
+function SetupPageInner() {
+  const searchParams = useSearchParams();
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [progress, setProgress] = useState<ProgressData | null>(null);
   const [isPolling, setIsPolling] = useState(false);
@@ -57,8 +59,16 @@ export default function SetupPage() {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [copied, setCopied] = useState(false);
 
-  // Session ID
+  // Session ID — ?session=<id> param lets an SE watch a client's session remotely
   useEffect(() => {
+    const paramSid = searchParams.get('session');
+    if (paramSid) {
+      setSessionId(paramSid);
+      setPhase('running');
+      setIsPolling(true);
+      return;
+    }
+
     let sid = localStorage.getItem('setup-session-id');
     if (!sid) {
       sid = `setup-${Date.now()}-${Math.random().toString(36).substring(7)}`;
@@ -72,7 +82,7 @@ export default function SetupPage() {
 
     const savedOs = localStorage.getItem('setup-os') as 'windows' | 'mac' | null;
     if (savedOs) setSelectedOs(savedOs);
-  }, []);
+  }, [searchParams]);
 
   // Elapsed timer
   useEffect(() => {
@@ -492,5 +502,13 @@ export default function SetupPage() {
 
       </main>
     </div>
+  );
+}
+
+export default function SetupPage() {
+  return (
+    <Suspense>
+      <SetupPageInner />
+    </Suspense>
   );
 }
