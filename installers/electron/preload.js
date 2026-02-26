@@ -1,9 +1,8 @@
 const { contextBridge, ipcRenderer } = require('electron');
-const { randomUUID } = require('crypto');
 
 contextBridge.exposeInMainWorld('api', {
   generateSessionId: () => {
-    return 'setup-' + randomUUID().replace(/-/g, '').slice(0, 12);
+    return 'setup-' + crypto.randomUUID().replace(/-/g, '').slice(0, 12);
   },
   openUrl: (url) => ipcRenderer.send('open-url', url),
   startInstall: (sessionId) => ipcRenderer.send('run-install', sessionId),

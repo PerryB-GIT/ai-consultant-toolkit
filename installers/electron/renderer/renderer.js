@@ -18,33 +18,45 @@ function appendLog(line, type) {
   box.scrollTop = box.scrollHeight;
 }
 
-document.getElementById('btn-start').addEventListener('click', () => {
-  sessionId = window.api.generateSessionId();
-  window.api.openUrl(DASHBOARD_URL + '?session=' + sessionId);
-  dashboardOpened = true;
-  document.getElementById('session-display').textContent = 'Session: ' + sessionId;
-  show('screen-progress');
-  window.api.startInstall(sessionId);
-});
+function init() {
+  document.getElementById('btn-start').addEventListener('click', () => {
+    sessionId = window.api.generateSessionId();
+    window.api.openUrl(DASHBOARD_URL + '?session=' + sessionId);
+    dashboardOpened = true;
+    document.getElementById('session-display').textContent = 'Session: ' + sessionId;
+    show('screen-progress');
+    window.api.startInstall(sessionId);
+  });
 
-window.api.onLog((line) => {
-  const type = line.toLowerCase().includes('error') || line.startsWith('[stderr]') ? 'error'
-             : line.toLowerCase().includes('success') || line.includes('\u2713') ? 'success'
-             : '';
-  appendLog(line, type);
-});
+  window.api.onLog((line) => {
+    const type = line.toLowerCase().includes('error') || line.startsWith('[stderr]') ? 'error'
+               : line.toLowerCase().includes('success') || line.includes('\u2713') ? 'success'
+               : '';
+    appendLog(line, type);
+  });
 
-window.api.onError((msg) => {
-  appendLog('ERROR: ' + msg, 'error');
-  document.getElementById('spinner').style.display = 'none';
-  document.getElementById('progress-note').textContent = 'Something went wrong. See error above.';
-  setTimeout(() => showFinish(1), 2000);
-});
+  window.api.onError((msg) => {
+    appendLog('ERROR: ' + msg, 'error');
+    document.getElementById('spinner').style.display = 'none';
+    document.getElementById('progress-note').textContent = 'Something went wrong. See error above.';
+    setTimeout(() => showFinish(1), 2000);
+  });
 
-window.api.onDone((code) => {
-  document.getElementById('spinner').style.display = 'none';
-  showFinish(code);
-});
+  window.api.onDone((code) => {
+    document.getElementById('spinner').style.display = 'none';
+    showFinish(code);
+  });
+
+  document.getElementById('btn-dashboard').addEventListener('click', () => {
+    window.api.openUrl(DASHBOARD_URL + '?session=' + sessionId);
+  });
+
+  document.getElementById('btn-close').addEventListener('click', () => {
+    window.close();
+  });
+}
+
+document.addEventListener('DOMContentLoaded', init);
 
 function showFinish(exitCode) {
   const title = document.getElementById('finish-title');
@@ -61,10 +73,3 @@ function showFinish(exitCode) {
   show('screen-finish');
 }
 
-document.getElementById('btn-dashboard').addEventListener('click', () => {
-  window.api.openUrl(DASHBOARD_URL + '?session=' + sessionId);
-});
-
-document.getElementById('btn-close').addEventListener('click', () => {
-  window.close();
-});
