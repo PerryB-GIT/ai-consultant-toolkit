@@ -76,3 +76,7 @@ installers/**/*.pkg
 installers/**/*.dmg
 installers/mac/flat/
 installers/mac/root/
+
+# Electron installer build output
+installers/electron/node_modules/
+installers/electron/dist/
