@@ -83,12 +83,17 @@ function runScript(event, scriptPath, sessionId, platform) {
   let child;
 
   if (platform === 'win32') {
+    // Use Start-Process -Verb RunAs to trigger UAC elevation prompt
+    // The script requires admin rights (#Requires -RunAsAdministrator)
+    const psArgs = `-NoProfile -ExecutionPolicy Bypass -File "${scriptPath}" -SessionId "${sessionId}"`;
     child = spawn('powershell.exe', [
       '-NoProfile',
       '-ExecutionPolicy', 'Bypass',
-      '-File', scriptPath,
-      '-SessionId', sessionId,
+      '-Command',
+      `Start-Process powershell.exe -ArgumentList '${psArgs}' -Verb RunAs -Wait`,
     ], { shell: false });
+    event.sender.send('install-log', 'Requesting administrator permission...');
+    event.sender.send('install-log', 'Click "Yes" on the UAC prompt to continue.');
   } else {
     // macOS: chmod then run with bash
     fs.chmodSync(scriptPath, '755');
