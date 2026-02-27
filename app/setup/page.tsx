@@ -58,6 +58,7 @@ function SetupPageInner() {
   const [selectedOs, setSelectedOs] = useState<'windows' | 'mac' | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [clientEmail, setClientEmail] = useState<string>('');
 
   // Session ID — ?session=<id> param lets an SE watch a client's session remotely
   useEffect(() => {
@@ -82,6 +83,9 @@ function SetupPageInner() {
 
     const savedOs = localStorage.getItem('setup-os') as 'windows' | 'mac' | null;
     if (savedOs) setSelectedOs(savedOs);
+
+    const savedEmail = localStorage.getItem('setup-client-email');
+    if (savedEmail) setClientEmail(savedEmail);
   }, [searchParams]);
 
   // Elapsed timer
@@ -113,6 +117,12 @@ function SetupPageInner() {
     const interval = setInterval(fetchProgress, 2000);
     return () => clearInterval(interval);
   }, [isPolling, fetchProgress]);
+
+  useEffect(() => {
+    if (clientEmail) {
+      localStorage.setItem('setup-client-email', clientEmail);
+    }
+  }, [clientEmail]);
 
   const formatTime = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
 
@@ -209,6 +219,20 @@ function SetupPageInner() {
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* Optional email for setup summary */}
+            <div className="bg-[#0f0f14] border border-gray-800 rounded-xl p-4">
+              <label className="block text-xs font-medium text-gray-400 mb-2">
+                Get a setup summary emailed to you <span className="text-gray-600">(optional)</span>
+              </label>
+              <input
+                type="email"
+                placeholder="your@email.com"
+                value={clientEmail}
+                onChange={(e) => setClientEmail(e.target.value)}
+                className="w-full bg-[#050508] border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#c97c4b] transition-colors"
+              />
             </div>
 
             {/* OS choice + copy command */}
