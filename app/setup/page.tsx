@@ -104,6 +104,18 @@ function SetupPageInner() {
       const data: ProgressData = await res.json();
       setProgress(data);
       if (data.complete) {
+        // Fire notify-complete (fire-and-forget)
+        fetch('/api/notify-complete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId,
+            clientEmail: localStorage.getItem('setup-client-email') || undefined,
+            os: (localStorage.getItem('setup-os') as 'windows' | 'mac') || undefined,
+            toolsInstalled: Object.values(data?.toolStatus || {}).filter(t => t.status === 'success').length,
+            errors: data?.errors?.length || 0,
+          }),
+        }).catch(() => {}); // never block the UI
         setPhase('complete');
         setIsPolling(false);
         localStorage.setItem('setup-phase', 'complete');
@@ -495,6 +507,21 @@ function SetupPageInner() {
                     <div className="font-medium text-white text-sm">Try your first skill</div>
                     <div className="text-xs text-gray-400 mt-1">Inside Claude Code, type:</div>
                     <code className="text-xs bg-gray-900 text-[#e8a87c] px-2 py-1 rounded mt-1 inline-block font-mono">/writing-emails</code>
+                  </div>
+                </li>
+                <li className="flex items-start gap-4">
+                  <div className="w-7 h-7 rounded-full bg-[#c97c4b] flex items-center justify-center text-sm font-bold flex-shrink-0">4</div>
+                  <div>
+                    <div className="font-medium text-white text-sm">Book a follow-up session</div>
+                    <div className="text-xs text-gray-400 mt-1">Perry will walk you through your first real workflow.</div>
+                    <a
+                      href="https://support-forge.com/#schedule"
+                      target="_blank"
+                      rel="noopener"
+                      className="text-xs text-[#c97c4b] hover:text-[#e8a87c] mt-1 inline-block"
+                    >
+                      Schedule with Perry →
+                    </a>
                   </div>
                 </li>
               </ol>
