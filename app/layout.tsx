@@ -7,6 +7,22 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: "Support Forge — AI Setup",
   description: "Get Claude Code and all AI tools installed in minutes. Powered by Support Forge.",
+  openGraph: {
+    title: "Support Forge — AI Setup",
+    description: "Get Claude Code and all AI tools installed in minutes.",
+    url: "https://ai-consultant-toolkit.vercel.app",
+    siteName: "Support Forge",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "Support Forge — AI Setup",
+    description: "Get Claude Code and all AI tools installed in minutes.",
+  },
+  robots: {
+    index: false,
+    follow: false,
+  },
 }
 
 export default function RootLayout({
