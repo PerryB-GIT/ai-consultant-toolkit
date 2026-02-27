@@ -515,7 +515,7 @@ function SetupPageInner() {
                     <div className="font-medium text-white text-sm">Book a follow-up session</div>
                     <div className="text-xs text-gray-400 mt-1">Perry will walk you through your first real workflow.</div>
                     <a
-                      href="https://support-forge.com/#schedule"
+                      href="https://calendly.com/perry-bailes/30min"
                       target="_blank"
                       rel="noopener"
                       className="text-xs text-[#c97c4b] hover:text-[#e8a87c] mt-1 inline-block"
