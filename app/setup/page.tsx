@@ -158,7 +158,7 @@ function SetupPageInner() {
       <header className="border-b border-gray-800 bg-[#0f0f14]">
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-[#c97c4b] rounded-lg flex items-center justify-center">
               <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
@@ -231,7 +231,7 @@ function SetupPageInner() {
                   <button
                     onClick={() => handleCopyCommand('windows')}
                     disabled={!sessionId}
-                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors"
+                    className="w-full py-3 bg-[#c97c4b] hover:bg-[#c97c4b] disabled:opacity-50 text-white font-semibold rounded-lg transition-colors"
                   >
                     {copied && selectedOs === 'windows' ? '✓ Copied!' : 'Copy Windows Command'}
                   </button>
@@ -243,7 +243,7 @@ function SetupPageInner() {
                   </div>
                   <a
                     href="https://github.com/PerryB-GIT/ai-consultant-toolkit/releases/latest/download/SupportForge-AI-Setup.exe"
-                    className="mt-2 flex items-center justify-center gap-2 w-full py-2 px-4 rounded-lg border border-zinc-700 text-zinc-300 hover:border-indigo-500 hover:text-white transition-colors text-sm"
+                    className="mt-2 flex items-center justify-center gap-2 w-full py-2 px-4 rounded-lg border border-zinc-700 text-zinc-300 hover:border-[#c97c4b] hover:text-white transition-colors text-sm"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -269,7 +269,7 @@ function SetupPageInner() {
                   <button
                     onClick={() => handleCopyCommand('mac')}
                     disabled={!sessionId}
-                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors"
+                    className="w-full py-3 bg-[#c97c4b] hover:bg-[#c97c4b] disabled:opacity-50 text-white font-semibold rounded-lg transition-colors"
                   >
                     {copied && selectedOs === 'mac' ? '✓ Copied!' : 'Copy Mac Command'}
                   </button>
@@ -281,7 +281,7 @@ function SetupPageInner() {
                   </div>
                   <a
                     href="https://github.com/PerryB-GIT/ai-consultant-toolkit/releases/latest/download/SupportForge-AI-Setup.pkg"
-                    className="mt-2 flex items-center justify-center gap-2 w-full py-2 px-4 rounded-lg border border-zinc-700 text-zinc-300 hover:border-indigo-500 hover:text-white transition-colors text-sm"
+                    className="mt-2 flex items-center justify-center gap-2 w-full py-2 px-4 rounded-lg border border-zinc-700 text-zinc-300 hover:border-[#c97c4b] hover:text-white transition-colors text-sm"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -296,20 +296,20 @@ function SetupPageInner() {
             </div>
 
             {/* After running */}
-            <div className="bg-indigo-900/20 border border-indigo-700/40 rounded-xl p-6">
+            <div className="bg-[rgba(201,124,75,0.1)] border border-[#c97c4b]/40/40 rounded-xl p-6">
               <h3 className="font-semibold text-white mb-3">After you run the command</h3>
               <ol className="space-y-2 text-sm text-gray-300">
                 <li className="flex items-start gap-3">
-                  <span className="text-indigo-400 font-bold mt-0.5">1.</span>
+                  <span className="text-[#c97c4b] font-bold mt-0.5">1.</span>
                   <span>The script runs in your terminal — this page updates live as each tool installs</span>
                 </li>
                 <li className="flex items-start gap-3">
-                  <span className="text-indigo-400 font-bold mt-0.5">2.</span>
-                  <span>When it finishes, run <code className="px-1.5 py-0.5 bg-gray-800 rounded font-mono text-indigo-300">gh auth login</code> to connect GitHub</span>
+                  <span className="text-[#c97c4b] font-bold mt-0.5">2.</span>
+                  <span>When it finishes, run <code className="px-1.5 py-0.5 bg-gray-800 rounded font-mono text-[#e8a87c]">gh auth login</code> to connect GitHub</span>
                 </li>
                 <li className="flex items-start gap-3">
-                  <span className="text-indigo-400 font-bold mt-0.5">3.</span>
-                  <span>Open a new terminal and type <code className="px-1.5 py-0.5 bg-gray-800 rounded font-mono text-indigo-300">claude</code> — enter your API key when prompted</span>
+                  <span className="text-[#c97c4b] font-bold mt-0.5">3.</span>
+                  <span>Open a new terminal and type <code className="px-1.5 py-0.5 bg-gray-800 rounded font-mono text-[#e8a87c]">claude</code> — enter your API key when prompted</span>
                 </li>
               </ol>
             </div>
@@ -332,7 +332,7 @@ function SetupPageInner() {
           <div className="space-y-6">
 
             {/* Current action */}
-            <div className="bg-[#0f0f14] border border-indigo-700/50 rounded-xl p-6">
+            <div className="bg-[#0f0f14] border border-[#c97c4b]/40/50 rounded-xl p-6">
               {progress ? (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
@@ -342,18 +342,18 @@ function SetupPageInner() {
                   {/* Progress bar */}
                   <div className="w-full bg-gray-800 rounded-full h-2">
                     <div
-                      className="bg-indigo-500 h-2 rounded-full transition-all duration-500"
+                      className="bg-[#c97c4b] h-2 rounded-full transition-all duration-500"
                       style={{ width: `${pct}%` }}
                     />
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
+                    <div className="w-2 h-2 rounded-full bg-[#c97c4b] animate-pulse" />
                     <span className="text-white font-medium">{progress.currentAction}</span>
                   </div>
                 </div>
               ) : (
                 <div className="flex items-center gap-3 text-gray-400">
-                  <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                  <div className="w-4 h-4 border-2 border-[#c97c4b] border-t-transparent rounded-full animate-spin" />
                   <span>Waiting for script to start... Make sure you ran the command in your terminal.</span>
                 </div>
               )}
@@ -371,7 +371,7 @@ function SetupPageInner() {
                         p-4 rounded-lg border transition-all duration-300
                         ${status.status === 'success' ? 'bg-green-900/10 border-green-800' :
                           status.status === 'error' ? 'bg-red-900/10 border-red-800' :
-                          status.status === 'installing' ? 'bg-indigo-900/20 border-indigo-700 animate-pulse' :
+                          status.status === 'installing' ? 'bg-[rgba(201,124,75,0.1)] border-[#c97c4b]/40 animate-pulse' :
                           status.status === 'skipped' ? 'bg-gray-900/30 border-gray-800' :
                           'bg-[#0f0f14] border-gray-800'}
                       `}
@@ -421,7 +421,7 @@ function SetupPageInner() {
                   <span>Make sure the command is running in your terminal</span>
                   <button
                     onClick={() => setPhase('landing')}
-                    className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2"
+                    className="text-[#c97c4b] hover:text-[#e8a87c] underline underline-offset-2"
                   >
                     Go back and copy the command again
                   </button>
@@ -465,28 +465,28 @@ function SetupPageInner() {
               <h3 className="font-semibold text-white">Next steps</h3>
               <ol className="space-y-4">
                 <li className="flex items-start gap-4">
-                  <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold flex-shrink-0">1</div>
+                  <div className="w-7 h-7 rounded-full bg-[#c97c4b] flex items-center justify-center text-sm font-bold flex-shrink-0">1</div>
                   <div>
                     <div className="font-medium text-white text-sm">Authenticate with GitHub</div>
                     <div className="text-xs text-gray-400 mt-1">Open a terminal and run:</div>
-                    <code className="text-xs bg-gray-900 text-indigo-300 px-2 py-1 rounded mt-1 inline-block font-mono">gh auth login</code>
+                    <code className="text-xs bg-gray-900 text-[#e8a87c] px-2 py-1 rounded mt-1 inline-block font-mono">gh auth login</code>
                   </div>
                 </li>
                 <li className="flex items-start gap-4">
-                  <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold flex-shrink-0">2</div>
+                  <div className="w-7 h-7 rounded-full bg-[#c97c4b] flex items-center justify-center text-sm font-bold flex-shrink-0">2</div>
                   <div>
                     <div className="font-medium text-white text-sm">Open Claude Code</div>
                     <div className="text-xs text-gray-400 mt-1">Open a new terminal and run:</div>
-                    <code className="text-xs bg-gray-900 text-indigo-300 px-2 py-1 rounded mt-1 inline-block font-mono">claude</code>
+                    <code className="text-xs bg-gray-900 text-[#e8a87c] px-2 py-1 rounded mt-1 inline-block font-mono">claude</code>
                     <div className="text-xs text-gray-400 mt-1">Enter your Anthropic API key when prompted.</div>
                   </div>
                 </li>
                 <li className="flex items-start gap-4">
-                  <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-bold flex-shrink-0">3</div>
+                  <div className="w-7 h-7 rounded-full bg-[#c97c4b] flex items-center justify-center text-sm font-bold flex-shrink-0">3</div>
                   <div>
                     <div className="font-medium text-white text-sm">Try your first skill</div>
                     <div className="text-xs text-gray-400 mt-1">Inside Claude Code, type:</div>
-                    <code className="text-xs bg-gray-900 text-indigo-300 px-2 py-1 rounded mt-1 inline-block font-mono">/writing-emails</code>
+                    <code className="text-xs bg-gray-900 text-[#e8a87c] px-2 py-1 rounded mt-1 inline-block font-mono">/writing-emails</code>
                   </div>
                 </li>
               </ol>
@@ -508,7 +508,7 @@ function SetupPageInner() {
             {/* Need help */}
             <div className="text-center text-sm text-gray-500">
               Need help? Contact{' '}
-              <a href="mailto:perry@support-forge.com" className="text-indigo-400 hover:text-indigo-300">
+              <a href="mailto:perry@support-forge.com" className="text-[#c97c4b] hover:text-[#e8a87c]">
                 perry@support-forge.com
               </a>
             </div>

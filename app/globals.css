@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --copper: #c97c4b;
+  --copper-light: #e8a87c;
+  --copper-muted: rgba(201, 124, 75, 0.15);
+  --navy: #0a1628;
+  --bg: #050508;
+  --bg-card: #0f0f14;
+}
+
 @layer base {
   body {
     @apply bg-background text-white antialiased;
