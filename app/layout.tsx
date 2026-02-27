@@ -5,8 +5,8 @@ import "./globals.css"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "AI Consultant Toolkit",
-  description: "Setup dashboard for AI consulting tools",
+  title: "Support Forge — AI Setup",
+  description: "Get Claude Code and all AI tools installed in minutes. Powered by Support Forge.",
 }
 
 export default function RootLayout({

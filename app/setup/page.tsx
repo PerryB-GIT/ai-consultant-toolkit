@@ -165,31 +165,15 @@ function SetupPageInner() {
     <div className="min-h-screen bg-[#050508] text-white">
 
       {/* Header */}
-      <header className="border-b border-gray-800 bg-[#0f0f14]">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#c97c4b] rounded-lg flex items-center justify-center">
-              <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            </div>
-            <div>
-              <div className="font-bold text-white">Support Forge</div>
-              <div className="text-xs text-gray-400">AI Setup</div>
-            </div>
-          </div>
-          {phase === 'running' && (
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-gray-400">{formatTime(elapsedTime)}</span>
-              <div className="flex items-center gap-2 px-3 py-1 bg-green-900/30 border border-green-700 rounded-full">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                </span>
-                <span className="text-green-400 text-xs font-medium">LIVE</span>
-              </div>
-            </div>
-          )}
+      <header className="sticky top-0 z-50 border-b border-gray-800/50 bg-[#050508]/90 backdrop-blur-sm">
+        <div className="max-w-4xl mx-auto px-6 py-3 flex items-center justify-between">
+          <a href="https://support-forge.com" className="flex items-center gap-2 group">
+            <div className="w-7 h-7 rounded bg-[#c97c4b] flex items-center justify-center text-white font-bold text-sm">SF</div>
+            <span className="text-white font-semibold text-sm group-hover:text-[#c97c4b] transition-colors">Support Forge</span>
+          </a>
+          <a href="mailto:perry@support-forge.com" className="text-xs text-gray-500 hover:text-[#c97c4b] transition-colors">
+            Need help?
+          </a>
         </div>
       </header>
 
@@ -553,6 +537,20 @@ function SetupPageInner() {
         )}
 
       </main>
+
+      {/* Footer */}
+      <footer className="text-center py-6 border-t border-gray-800/30 mt-8">
+        <p className="text-xs text-gray-600">
+          Powered by{' '}
+          <a href="https://support-forge.com" className="text-[#c97c4b] hover:text-[#e8a87c] transition-colors">
+            Support Forge
+          </a>
+          {' '}· Questions?{' '}
+          <a href="mailto:perry@support-forge.com" className="text-[#c97c4b] hover:text-[#e8a87c] transition-colors">
+            perry@support-forge.com
+          </a>
+        </p>
+      </footer>
     </div>
   );
 }
