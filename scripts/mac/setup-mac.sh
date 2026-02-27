@@ -454,3 +454,21 @@ if [ "$SKILLS_OK" = false ]; then
     echo "    After completing steps 1-2, re-run:"
     echo "    bash setup-mac.sh --skills-repo $SKILLS_REPO_URL"
 fi
+
+echo ""
+echo "========================================"
+echo " VERIFICATION"
+echo "========================================"
+
+for cmd in "git --version" "node --version" "gh --version" "claude --version"; do
+    name=$(echo "$cmd" | awk '{print $1}')
+    result=$(eval "$cmd" 2>/dev/null | head -1)
+    if [ -n "$result" ]; then
+        echo "  [OK] $name: $result"
+    else
+        echo "  [MISSING] $name - may need a new terminal"
+    fi
+done
+
+echo ""
+echo "Installation complete. Open a NEW terminal and type: claude"

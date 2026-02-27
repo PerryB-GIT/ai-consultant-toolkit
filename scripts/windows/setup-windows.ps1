@@ -561,4 +561,29 @@ if ($results.results.docker.status -eq 'OK' -and $results.results.docker.install
     Write-Host "  4. Start Docker Desktop from Start Menu"
 }
 
+
+Write-Host ""
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host " VERIFICATION" -ForegroundColor Cyan
+Write-Host "========================================" -ForegroundColor Cyan
+
+$checks = @(
+    @{ Name = "Git"; Cmd = "git --version" },
+    @{ Name = "Node.js"; Cmd = "node --version" },
+    @{ Name = "GitHub CLI"; Cmd = "gh --version" },
+    @{ Name = "Claude Code"; Cmd = "claude --version" }
+)
+
+foreach ($check in $checks) {
+    try {
+        $result = Invoke-Expression $check.Cmd 2>&1 | Select-Object -First 1
+        Write-Host "  [OK] $($check.Name): $result" -ForegroundColor Green
+    } catch {
+        Write-Host "  [MISSING] $($check.Name) - may need a new terminal" -ForegroundColor Yellow
+    }
+}
+
+Write-Host ""
+Write-Host "Installation complete. Open a NEW terminal and type: claude" -ForegroundColor Green
+
 return $results
