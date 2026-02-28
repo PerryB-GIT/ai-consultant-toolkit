@@ -10,9 +10,9 @@ const config: Config = {
     extend: {
       colors: {
         primary: {
-          DEFAULT: "#c97c4b",
-          dark: "#e8a87c",
-          muted: "rgba(201,124,75,0.15)",
+          DEFAULT: "#6366f1",
+          dark: "#818cf8",
+          muted: "rgba(99,102,241,0.15)",
         },
         navy: "#0a1628",
         background: {

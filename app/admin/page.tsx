@@ -91,10 +91,10 @@ export default async function AdminPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
             <div style={{
               width: '28px', height: '28px', borderRadius: '6px',
-              background: '#c97c4b', display: 'flex', alignItems: 'center',
+              background: '#6366f1', display: 'flex', alignItems: 'center',
               justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: '13px',
             }}>SF</div>
-            <h1 style={{ color: '#c97c4b', margin: 0, fontSize: '20px', fontWeight: '700' }}>
+            <h1 style={{ color: '#6366f1', margin: 0, fontSize: '20px', fontWeight: '700' }}>
               Support Forge Admin
             </h1>
           </div>
@@ -119,7 +119,7 @@ export default async function AdminPage() {
           {[
             { label: 'Total Sessions', value: sessions.length, color: '#f1f5f9' },
             { label: 'Completed', value: completed, color: '#4ade80' },
-            { label: 'In Progress', value: inProgress, color: '#c97c4b' },
+            { label: 'In Progress', value: inProgress, color: '#6366f1' },
             { label: 'Total Errors', value: totalErrors, color: totalErrors > 0 ? '#f87171' : '#4ade80' },
           ].map(stat => (
             <div key={stat.label} style={{
@@ -159,8 +159,8 @@ export default async function AdminPage() {
               </div>
               <div style={{ color: '#94a3b8', fontSize: '11px' }}>{s.phase}</div>
               <div style={{
-                color: s.complete ? '#4ade80' : '#c97c4b', fontSize: '11px', textAlign: 'center',
-                background: s.complete ? 'rgba(74,222,128,0.1)' : 'rgba(201,124,75,0.1)',
+                color: s.complete ? '#4ade80' : '#6366f1', fontSize: '11px', textAlign: 'center',
+                background: s.complete ? 'rgba(74,222,128,0.1)' : 'rgba(99,102,241,0.1)',
                 borderRadius: '4px', padding: '2px 6px',
               }}>
                 {s.complete ? 'Done' : 'Live'}
@@ -180,7 +180,7 @@ export default async function AdminPage() {
         </div>
 
         <div style={{ marginTop: '32px', borderTop: '1px solid #1f2937', paddingTop: '16px', fontSize: '11px', color: '#374151' }}>
-          Support Forge Admin · Sessions expire after 1 hour · <a href="/setup" style={{ color: '#c97c4b' }}>Back to Setup Dashboard</a>
+          Support Forge Admin · Sessions expire after 1 hour · <a href="/setup" style={{ color: '#6366f1' }}>Back to Setup Dashboard</a>
         </div>
       </body>
     </html>
