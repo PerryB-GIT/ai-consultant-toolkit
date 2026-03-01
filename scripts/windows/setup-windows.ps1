@@ -173,9 +173,12 @@ if (Get-Command choco -ErrorAction SilentlyContinue) {
     $toolStatus['chocolatey'] = @{ status = 'installing'; version = $null }
     Send-Progress -CurrentStep $currentStep -CompletedSteps $completedSteps -CurrentAction "Installing Chocolatey..." -ToolStatus $toolStatus -Errors $results.errors
     try {
-        Set-ExecutionPolicy Bypass -Scope Process -Force
-        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
-        Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+        Set-ExecutionPolicy Bypass -Scope Process -Force -ErrorAction SilentlyContinue
+        # Use Invoke-WebRequest (modern method) — WebClient.DownloadString() fails in restricted environments
+        $chocoInstallScript = "$env:TEMP\choco-install.ps1"
+        Invoke-WebRequest -Uri 'https://community.chocolatey.org/install.ps1' -OutFile $chocoInstallScript -UseBasicParsing -ErrorAction Stop
+        & $chocoInstallScript
+        Remove-Item $chocoInstallScript -ErrorAction SilentlyContinue
         Refresh-EnvironmentPath
         $version = Get-InstalledVersion -Command 'choco' -VersionArg '-v'
         if ($version) {
@@ -286,7 +289,7 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
     $toolStatus['nodejs'] = @{ status = 'installing'; version = $null }
     Send-Progress -CurrentStep $currentStep -CompletedSteps $completedSteps -CurrentAction "Installing Node.js v20..." -ToolStatus $toolStatus -Errors $results.errors
     try {
-        choco install nodejs-lts --version=20.18.0 -y --no-progress
+        choco install nodejs-lts -y --no-progress
         if (-not (Wait-ForCommand 'node')) { throw 'node not found in PATH after install' }
         $version = Get-InstalledVersion -Command 'node'
         if ($version) {
