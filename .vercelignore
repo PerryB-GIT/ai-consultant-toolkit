@@ -1,0 +1,15 @@
+node_modules/
+test-results/
+electron-smoke-test.png
+installers/electron/node_modules/
+installers/electron/dist/
+installers/**/*.exe
+installers/**/*.pkg
+installers/**/*.dmg
+installers/mac/flat/
+.next/
+out/
+coverage/
+*.log
+tmp/
+temp/
