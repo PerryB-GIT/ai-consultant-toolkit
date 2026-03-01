@@ -28,7 +28,6 @@ interface ProgressData {
 }
 
 const TOOL_LABELS: Record<string, string> = {
-  chocolatey: 'Chocolatey',
   homebrew: 'Homebrew',
   git: 'Git',
   github_cli: 'GitHub CLI',
@@ -42,7 +41,7 @@ const TOOL_LABELS: Record<string, string> = {
 
 // What actually gets installed — client-friendly descriptions
 const WHAT_GETS_INSTALLED = [
-  { icon: '📦', label: 'Package Manager', detail: 'Chocolatey (Windows) or Homebrew (Mac)' },
+  { icon: '📦', label: 'Package Manager', detail: 'winget (Windows) or Homebrew (Mac)' },
   { icon: '🔧', label: 'Git & GitHub CLI', detail: 'Version control and repo access' },
   { icon: '⚡', label: 'Node.js', detail: 'Required to run Claude Code' },
   { icon: '🤖', label: 'Claude Code', detail: 'Your AI assistant' },
@@ -109,6 +108,9 @@ function SetupPageInner() {
       lastProgressTimestampRef.current = Date.now();
       setStallWarning(false);
       setProgress(data);
+      // Auto-advance from landing → running once the script sends its first update
+      setPhase(prev => prev === 'landing' ? 'running' : prev);
+      localStorage.setItem('setup-phase', 'running');
       if (data.complete) {
         // Fire notify-complete (fire-and-forget)
         fetch('/api/notify-complete', {
@@ -197,9 +199,10 @@ function SetupPageInner() {
     navigator.clipboard.writeText(getInstallCommand(os));
     setSelectedOs(os);
     setCopied(true);
-    setPhase('running');
+    // Start polling in the background so we auto-advance to 'running' once the
+    // script sends its first progress update — but keep the user on the copy page
+    // so they can actually paste and run the command first.
     setIsPolling(true);
-    localStorage.setItem('setup-phase', 'running');
     localStorage.setItem('setup-os', os);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -406,7 +409,7 @@ function SetupPageInner() {
             {/* Already running */}
             <div className="text-center">
               <button
-                onClick={() => { setPhase('running'); setIsPolling(true); localStorage.setItem('setup-phase', 'running'); }}
+                onClick={() => { setPhase('running'); setIsPolling(true); }}
                 className="text-sm text-gray-500 hover:text-gray-300 underline underline-offset-2"
               >
                 Already running the script? Watch live progress →
