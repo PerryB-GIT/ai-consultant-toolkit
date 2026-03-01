@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, Suspense } from 'react';
+import { useEffect, useState, useCallback, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 interface ToolStatus {
@@ -59,6 +59,9 @@ function SetupPageInner() {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [copied, setCopied] = useState(false);
   const [clientEmail, setClientEmail] = useState<string>('');
+  const [stallWarning, setStallWarning] = useState(false);
+  const lastProgressTimestampRef = useRef<number | null>(null);
+  const stallCheckIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Session ID — ?session=<id> param lets an SE watch a client's session remotely
   useEffect(() => {
@@ -102,6 +105,9 @@ function SetupPageInner() {
       const res = await fetch(`/api/progress/${sessionId}`);
       if (!res.ok) return;
       const data: ProgressData = await res.json();
+      // BUG-04: Update last-progress timestamp on every successful response
+      lastProgressTimestampRef.current = Date.now();
+      setStallWarning(false);
       setProgress(data);
       if (data.complete) {
         // Fire notify-complete (fire-and-forget)
@@ -130,6 +136,38 @@ function SetupPageInner() {
     return () => clearInterval(interval);
   }, [isPolling, fetchProgress]);
 
+  // BUG-04: Stall detection — if running for > 5 minutes with no progress update, show warning
+  useEffect(() => {
+    if (phase !== 'running') {
+      if (stallCheckIntervalRef.current) {
+        clearInterval(stallCheckIntervalRef.current);
+        stallCheckIntervalRef.current = null;
+      }
+      setStallWarning(false);
+      lastProgressTimestampRef.current = null;
+      return;
+    }
+    // Seed the timestamp when we enter running phase
+    if (lastProgressTimestampRef.current === null) {
+      lastProgressTimestampRef.current = Date.now();
+    }
+    const STALL_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+    stallCheckIntervalRef.current = setInterval(() => {
+      if (lastProgressTimestampRef.current !== null) {
+        const elapsed = Date.now() - lastProgressTimestampRef.current;
+        if (elapsed > STALL_THRESHOLD_MS) {
+          setStallWarning(true);
+        }
+      }
+    }, 30000); // check every 30 seconds
+    return () => {
+      if (stallCheckIntervalRef.current) {
+        clearInterval(stallCheckIntervalRef.current);
+        stallCheckIntervalRef.current = null;
+      }
+    };
+  }, [phase]);
+
   useEffect(() => {
     if (clientEmail) {
       localStorage.setItem('setup-client-email', clientEmail);
@@ -139,12 +177,12 @@ function SetupPageInner() {
   const formatTime = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
 
   const getInstallCommand = (os: 'windows' | 'mac') => {
-    const sid = sessionId || 'loading';
+    const sid = sessionId!;
     if (os === 'windows') {
       return [
         `# Run this in PowerShell as Administrator`,
         `Set-ExecutionPolicy Bypass -Scope Process -Force`,
-        `Invoke-WebRequest -Uri "https://raw.githubusercontent.com/PerryB-GIT/ai-consultant-toolkit/main/scripts/windows/setup-windows.ps1" -OutFile "$env:TEMP\\setup.ps1"`,
+        `Invoke-WebRequest -Uri "https://raw.githubusercontent.com/PerryB-GIT/ai-consultant-toolkit/main/scripts/windows/setup-windows.ps1" -OutFile "$env:TEMP\\setup.ps1" -ErrorAction Stop`,
         `& "$env:TEMP\\setup.ps1" -SessionId "${sid}"`,
       ].join('\n');
     }
@@ -245,33 +283,55 @@ function SetupPageInner() {
                       <div className="text-xs text-gray-400">PowerShell as Administrator</div>
                     </div>
                   </div>
-                  <div className="bg-gray-900 rounded-lg p-3 font-mono text-xs text-gray-300 leading-relaxed overflow-x-auto whitespace-pre">
-                    {getInstallCommand('windows')}
-                  </div>
-                  <button
-                    onClick={() => handleCopyCommand('windows')}
-                    disabled={!sessionId}
-                    className="w-full py-3 bg-[#6366f1] hover:bg-[#6366f1] disabled:opacity-50 text-white font-semibold rounded-lg transition-colors"
-                  >
-                    {copied && selectedOs === 'windows' ? '✓ Copied!' : 'Copy Windows Command'}
-                  </button>
-                  <p className="text-xs text-gray-500 text-center">
-                    Open PowerShell as Administrator → paste → press Enter
-                  </p>
-                  <div className="mt-3 text-center">
-                    <span className="text-zinc-500 text-xs">— or —</span>
-                  </div>
-                  <a
-                    href="https://github.com/PerryB-GIT/ai-consultant-toolkit/releases/latest/download/SupportForge-AI-Setup.exe"
-                    className="mt-2 flex items-center justify-center gap-2 w-full py-2 px-4 rounded-lg border border-zinc-700 text-zinc-300 hover:border-[#6366f1] hover:text-white transition-colors text-sm"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
-                    Download .exe installer
-                  </a>
+                  {/* BUG-01: Only show command/download once sessionId is ready */}
+                  {!sessionId ? (
+                    <div className="flex items-center gap-2 text-gray-500 text-sm py-4">
+                      <div className="w-4 h-4 border-2 border-[#6366f1] border-t-transparent rounded-full animate-spin" />
+                      Preparing your session...
+                    </div>
+                  ) : (
+                    <>
+                      <div className="bg-gray-900 rounded-lg p-3 font-mono text-xs text-gray-300 leading-relaxed overflow-x-auto whitespace-pre">
+                        {getInstallCommand('windows')}
+                      </div>
+                      <button
+                        onClick={() => handleCopyCommand('windows')}
+                        className="w-full py-3 bg-[#6366f1] hover:bg-[#6366f1] text-white font-semibold rounded-lg transition-colors"
+                      >
+                        {copied && selectedOs === 'windows' ? '✓ Copied!' : 'Copy Windows Command'}
+                      </button>
+                      <p className="text-xs text-gray-500 text-center">
+                        Open PowerShell as Administrator → paste → press Enter
+                      </p>
+                      <div className="mt-3 text-center">
+                        <span className="text-zinc-500 text-xs">— or —</span>
+                      </div>
+                      {/* UX-03: Track .exe download click + SmartScreen guidance */}
+                      <a
+                        href="https://github.com/PerryB-GIT/ai-consultant-toolkit/releases/latest/download/SupportForge-AI-Setup.exe"
+                        className="mt-2 flex items-center justify-center gap-2 w-full py-2 px-4 rounded-lg border border-zinc-700 text-zinc-300 hover:border-[#6366f1] hover:text-white transition-colors text-sm"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => {
+                          if (sessionId) {
+                            fetch(`/api/progress/${sessionId}`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ step: 'installer-downloaded', os: 'windows', method: 'exe' })
+                            }).catch(() => {}) // fire and forget
+                          }
+                        }}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Download .exe installer
+                      </a>
+                      <p className="text-xs text-zinc-500 mt-1">
+                        If Windows shows &quot;Windows protected your PC&quot;, click &quot;More info&quot; then &quot;Run anyway&quot; — this is normal for new software.
+                      </p>
+                    </>
+                  )}
                 </div>
 
                 {/* Mac */}
@@ -283,40 +343,49 @@ function SetupPageInner() {
                       <div className="text-xs text-gray-400">Terminal (any shell)</div>
                     </div>
                   </div>
-                  <div className="bg-gray-900 rounded-lg p-3 font-mono text-xs text-gray-300 leading-relaxed overflow-x-auto whitespace-pre">
-                    {getInstallCommand('mac')}
-                  </div>
-                  <button
-                    onClick={() => handleCopyCommand('mac')}
-                    disabled={!sessionId}
-                    className="w-full py-3 bg-[#6366f1] hover:bg-[#6366f1] disabled:opacity-50 text-white font-semibold rounded-lg transition-colors"
-                  >
-                    {copied && selectedOs === 'mac' ? '✓ Copied!' : 'Copy Mac Command'}
-                  </button>
-                  <p className="text-xs text-gray-500 text-center">
-                    Open Terminal → paste → press Enter
-                  </p>
-                  <div className="mt-3 text-center">
-                    <span className="text-zinc-500 text-xs">— or —</span>
-                  </div>
-                  <a
-                    href="https://github.com/PerryB-GIT/ai-consultant-toolkit/releases/latest/download/SupportForge-AI-Setup.pkg"
-                    className="mt-2 flex items-center justify-center gap-2 w-full py-2 px-4 rounded-lg border border-zinc-700 text-zinc-300 hover:border-[#6366f1] hover:text-white transition-colors text-sm"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
-                    Download .pkg installer
-                  </a>
+                  {/* BUG-01: Only show command/download once sessionId is ready */}
+                  {!sessionId ? (
+                    <div className="flex items-center gap-2 text-gray-500 text-sm py-4">
+                      <div className="w-4 h-4 border-2 border-[#6366f1] border-t-transparent rounded-full animate-spin" />
+                      Preparing your session...
+                    </div>
+                  ) : (
+                    <>
+                      <div className="bg-gray-900 rounded-lg p-3 font-mono text-xs text-gray-300 leading-relaxed overflow-x-auto whitespace-pre">
+                        {getInstallCommand('mac')}
+                      </div>
+                      <button
+                        onClick={() => handleCopyCommand('mac')}
+                        className="w-full py-3 bg-[#6366f1] hover:bg-[#6366f1] text-white font-semibold rounded-lg transition-colors"
+                      >
+                        {copied && selectedOs === 'mac' ? '✓ Copied!' : 'Copy Mac Command'}
+                      </button>
+                      <p className="text-xs text-gray-500 text-center">
+                        Open Terminal → paste → press Enter
+                      </p>
+                      <div className="mt-3 text-center">
+                        <span className="text-zinc-500 text-xs">— or —</span>
+                      </div>
+                      <a
+                        href="https://github.com/PerryB-GIT/ai-consultant-toolkit/releases/latest/download/SupportForge-AI-Setup.pkg"
+                        className="mt-2 flex items-center justify-center gap-2 w-full py-2 px-4 rounded-lg border border-zinc-700 text-zinc-300 hover:border-[#6366f1] hover:text-white transition-colors text-sm"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Download .pkg installer
+                      </a>
+                    </>
+                  )}
                 </div>
 
               </div>
             </div>
 
             {/* After running */}
-            <div className="bg-[rgba(99,102,241,0.1)] border border-[#6366f1]/40/40 rounded-xl p-6">
+            <div className="bg-[rgba(99,102,241,0.1)] border border-[#6366f1]/40 rounded-xl p-6">
               <h3 className="font-semibold text-white mb-3">After you run the command</h3>
               <ol className="space-y-2 text-sm text-gray-300">
                 <li className="flex items-start gap-3">
@@ -352,7 +421,7 @@ function SetupPageInner() {
           <div className="space-y-6">
 
             {/* Current action */}
-            <div className="bg-[#0f0f14] border border-[#6366f1]/40/50 rounded-xl p-6">
+            <div className="bg-[#0f0f14] border border-[#6366f1]/40 rounded-xl p-6">
               {progress ? (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
@@ -446,6 +515,16 @@ function SetupPageInner() {
                     Go back and copy the command again
                   </button>
                 </div>
+              </div>
+            )}
+
+            {/* BUG-04: Stall warning — shown after 5 minutes with no progress update */}
+            {stallWarning && (
+              <div className="bg-yellow-900/10 border border-yellow-700/50 rounded-xl p-5 text-sm text-yellow-300">
+                Installation is taking longer than expected. If you&apos;re stuck, try refreshing the page or contact{' '}
+                <a href="mailto:support@support-forge.com" className="underline underline-offset-2 hover:text-yellow-100">
+                  support@support-forge.com
+                </a>
               </div>
             )}
 

@@ -29,8 +29,8 @@ const ProgressDataSchema = z.object({
 
 type ProgressData = z.infer<typeof ProgressDataSchema>;
 
-// TTL: 1 hour
-const TTL_SECONDS = 3600;
+// TTL: 24 hours (was 1 hour — extended so late follow-ups can still read session data)
+const TTL_SECONDS = 86400;
 
 // CORS headers for local script access
 const corsHeaders = {

@@ -3,7 +3,7 @@
 ; Wraps setup-windows.ps1 with a GUI and live dashboard integration
 
 !define PRODUCT_NAME "Support Forge AI Setup"
-!define PRODUCT_VERSION "1.0.0"
+!define PRODUCT_VERSION "1.3.0"
 !define PRODUCT_PUBLISHER "Support Forge LLC"
 !define PRODUCT_URL "https://support-forge.com"
 !define SETUP_SCRIPT_URL "https://raw.githubusercontent.com/PerryB-GIT/ai-consultant-toolkit/main/scripts/windows/setup-windows.ps1"
@@ -42,7 +42,7 @@ ShowInstDetails show
 !insertmacro MUI_LANGUAGE "English"
 
 ; Version info embedded in .exe
-VIProductVersion "1.0.0.0"
+VIProductVersion "1.3.0.0"
 VIAddVersionKey "ProductName" "${PRODUCT_NAME}"
 VIAddVersionKey "CompanyName" "${PRODUCT_PUBLISHER}"
 VIAddVersionKey "LegalCopyright" "© 2026 ${PRODUCT_PUBLISHER}"

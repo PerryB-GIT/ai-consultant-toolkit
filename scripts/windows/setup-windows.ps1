@@ -30,6 +30,10 @@ param(
     [switch]$SkipDocker = $false,
     [string]$SkillsRepoUrl = 'https://github.com/PerryB-GIT/client-toolkit-template.git'
 )
+
+# ===== CRIT-3: TLS 1.2 enforcement - must be before ANY network calls =====
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
 $ErrorActionPreference = 'Continue'
 $startTime = Get-Date
 
@@ -91,14 +95,31 @@ function Add-Error { param([string]$Tool, [string]$Message, [string]$Fix = ''); 
 function Get-InstalledVersion { param([string]$Command, [string]$VersionArg = '--version'); try { $v = & $Command $VersionArg 2>&1 | Select-Object -First 1; if ($v -match '(\d+\.\d+\.\d+)') { return $matches[1] }; return $v.ToString().Trim() } catch { return $null } }
 function Refresh-EnvironmentPath { $env:Path = [System.Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path','User') }
 function Wait-ForCommand {
-    # Retry PATH refresh up to 6 times (6s) waiting for a newly-installed command to appear
-    param([string]$Command, [int]$MaxAttempts = 6)
+    # CRIT-4: Retry PATH refresh waiting for a newly-installed command to appear.
+    # Default timeout is 90s (45 attempts x 2s) to accommodate MSI installers like
+    # Node.js and Python which can take 30-60 seconds to complete.
+    param([string]$Command, [int]$MaxAttempts = 45, [int]$SleepSeconds = 2)
     for ($i = 0; $i -lt $MaxAttempts; $i++) {
         Refresh-EnvironmentPath
         if (Get-Command $Command -ErrorAction SilentlyContinue) { return $true }
-        Start-Sleep -Seconds 1
+        Start-Sleep -Seconds $SleepSeconds
     }
     return $false
+}
+
+function Test-RealPython {
+    # HIGH-2: Detect Windows Store Python stub, which is a zero-size redirect
+    # file that appears in PATH but does not actually run Python.
+    $pythonCmd = Get-Command python -ErrorAction SilentlyContinue
+    if (-not $pythonCmd) { return $false }
+    $pythonPath = $pythonCmd.Source
+    if ($pythonPath -like "*WindowsApps*") {
+        # This is the Windows Store stub, not a real Python installation
+        return $false
+    }
+    # Verify the binary actually runs and reports Python 3.x
+    $version = & python --version 2>&1
+    return ($version -match "Python 3\.")
 }
 
 # ===== LIVE DASHBOARD FUNCTIONS =====
@@ -173,6 +194,12 @@ if (Get-Command choco -ErrorAction SilentlyContinue) {
     }
 }
 Send-Progress -CurrentStep $currentStep -CompletedSteps $completedSteps -CurrentAction "Chocolatey complete" -ToolStatus $toolStatus -Errors $results.errors
+
+# CRIT-2: Early exit if Chocolatey is not available - all subsequent installs depend on it
+if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
+    Write-Error "Chocolatey installation failed. Cannot proceed with tool installation."
+    exit 1
+}
 
 # ===== GIT =====
 $currentStep = 2
@@ -283,7 +310,8 @@ Send-Progress -CurrentStep $currentStep -CompletedSteps $completedSteps -Current
 $currentStep = 5
 Send-Progress -CurrentStep $currentStep -CompletedSteps $completedSteps -CurrentAction "Checking Python..." -ToolStatus $toolStatus -Errors $results.errors
 Write-Step 'Checking Python...'
-if (Get-Command python -ErrorAction SilentlyContinue) {
+if (Test-RealPython) {
+    # HIGH-2: Test-RealPython filters out the Windows Store stub (WindowsApps\python.exe)
     $version = Get-InstalledVersion -Command 'python'
     Write-Success "Python already installed ($version)"
     $results.results.python = @{ status = 'OK'; version = $version; installed = $false }
@@ -332,6 +360,11 @@ if ($wslStatus -like '*Default Version: 2*' -or $wslStatus -like '*WSL version: 
     Send-Progress -CurrentStep $currentStep -CompletedSteps $completedSteps -CurrentAction "Installing WSL2..." -ToolStatus $toolStatus -Errors $results.errors
     try {
         wsl --install --no-launch
+        # CRIT-5: Check WSL exit code. Code 1 is normal when a reboot is pending;
+        # any other non-zero code indicates a genuine failure.
+        if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne 1) {
+            Write-Warning "WSL install returned exit code $LASTEXITCODE - may need reboot to complete"
+        }
         $results.restart_required = $true
         $results.results.wsl2 = @{ status = 'OK'; version = '2.0.0'; installed = $true; restart_required = $true }
         $toolStatus['wsl2'] = @{ status = 'success'; version = '2.0.0'; restart_required = $true }
@@ -370,8 +403,11 @@ if (Get-Command claude -ErrorAction SilentlyContinue) {
         if ($LASTEXITCODE -ne 0) {
             throw "npm install failed with exit code $LASTEXITCODE"
         }
-        Refresh-EnvironmentPath
-        Start-Sleep -Seconds 2
+        # HIGH-3: Replace fixed sleep with proper polling so claude is confirmed
+        # available in PATH before we try to read its version.
+        if (-not (Wait-ForCommand 'claude' -MaxAttempts 30 -SleepSeconds 2)) {
+            throw 'claude not found in PATH after install'
+        }
         $version = Get-InstalledVersion -Command 'claude'
         if ($version) {
             Write-Success "Claude Code installed ($version)"
@@ -418,14 +454,18 @@ if ($SkipDocker) {
         try {
             choco install docker-desktop -y --no-progress
             Refresh-EnvironmentPath
-            $version = Get-InstalledVersion -Command 'docker'
-            if ($version) {
-                Write-Success "Docker Desktop installed ($version)"
-                $results.results.docker = @{ status = 'OK'; version = $version; installed = $true }
-                $toolStatus['docker'] = @{ status = 'success'; version = $version }
+            # HIGH-4: Docker Desktop takes 60-120 seconds to fully initialize after install.
+            # Running `docker version` immediately will fail because the daemon is not yet running.
+            # Instead, verify that the binary was placed on disk at the known install path.
+            $dockerExe = "C:\Program Files\Docker\Docker\resources\bin\docker.exe"
+            if (Test-Path $dockerExe) {
+                Write-Success "Docker Desktop installed successfully (requires restart to fully initialize)"
+                $results.results.docker = @{ status = 'OK'; version = 'installed'; installed = $true }
+                $toolStatus['docker'] = @{ status = 'success'; version = 'installed' }
                 $completedSteps += 8
                 Write-Info 'Docker Desktop requires manual start from Start Menu'
             } else {
+                Write-Warning "Docker Desktop binary not found at expected path"
                 throw 'Docker Desktop installation verification failed'
             }
         } catch {

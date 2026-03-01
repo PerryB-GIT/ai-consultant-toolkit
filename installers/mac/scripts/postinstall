@@ -4,6 +4,13 @@
 
 set -e
 
+TMP_SCRIPT="${TMP_SCRIPT:-/tmp/support-forge-setup.sh}"
+
+cleanup() {
+    rm -f "$TMP_SCRIPT"
+}
+trap cleanup EXIT
+
 # Generate session ID
 SESSION_ID="setup-$(date +%s)-$(LC_ALL=C tr -dc 'a-z0-9' </dev/urandom 2>/dev/null | head -c 6 || echo 'mac001')"
 
@@ -19,8 +26,11 @@ else
 fi
 
 # Download setup script
-TMP_SCRIPT="/tmp/support-forge-setup-${SESSION_ID}.sh"
-curl -fsSL "$SCRIPT_URL" -o "$TMP_SCRIPT"
+curl -fsSL "$SCRIPT_URL" -o "$TMP_SCRIPT" || {
+    echo "ERROR: Failed to download setup script from $SCRIPT_URL" >&2
+    echo "Check your internet connection and try again." >&2
+    exit 1
+}
 chmod +x "$TMP_SCRIPT"
 
 # Run as logged-in user so Homebrew works correctly (refuses to run as root)
@@ -29,8 +39,5 @@ if [[ -n "$LOGGED_IN_USER" && "$LOGGED_IN_USER" != "root" ]]; then
 else
     bash "$TMP_SCRIPT" --session-id "$SESSION_ID"
 fi
-
-# Cleanup
-rm -f "$TMP_SCRIPT"
 
 exit 0

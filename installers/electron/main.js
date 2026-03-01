@@ -85,7 +85,9 @@ function runScript(event, scriptPath, sessionId, platform) {
   if (platform === 'win32') {
     // Use Start-Process -Verb RunAs to trigger UAC elevation prompt
     // The script requires admin rights (#Requires -RunAsAdministrator)
-    const psArgs = `-NoProfile -ExecutionPolicy Bypass -File "${scriptPath}" -SessionId "${sessionId}"`;
+    // Escape single quotes in the path (handles usernames like O'Brien)
+    const escapedScriptPath = scriptPath.replace(/'/g, "''");
+    const psArgs = `-NoProfile -ExecutionPolicy Bypass -File '${escapedScriptPath}' -SessionId "${sessionId}"`;
     child = spawn('powershell.exe', [
       '-NoProfile',
       '-ExecutionPolicy', 'Bypass',
@@ -94,6 +96,9 @@ function runScript(event, scriptPath, sessionId, platform) {
     ], { shell: false });
     event.sender.send('install-log', 'Requesting administrator permission...');
     event.sender.send('install-log', 'Click "Yes" on the UAC prompt to continue.');
+    event.sender.send('install-log', '');
+    event.sender.send('install-log', 'Progress updates are shown in your browser window.');
+    event.sender.send('install-log', 'Keep this window open until installation completes.');
   } else {
     // macOS: chmod then run with bash
     fs.chmodSync(scriptPath, '755');
@@ -113,6 +118,11 @@ function runScript(event, scriptPath, sessionId, platform) {
   });
 
   child.on('close', (code) => {
+    if (code === 0) {
+      event.sender.send('install-log', 'Installation completed successfully.');
+    } else {
+      event.sender.send('install-log', `Process exited with code ${code}. Check the browser dashboard for details.`);
+    }
     event.sender.send('install-done', code);
   });
 

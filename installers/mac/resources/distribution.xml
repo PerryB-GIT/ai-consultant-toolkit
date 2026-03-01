@@ -15,5 +15,5 @@
     <choice id="com.supportforge.aisetup" visible="false">
         <pkg-ref id="com.supportforge.aisetup"/>
     </choice>
-    <pkg-ref id="com.supportforge.aisetup" version="1.0.0" onConclusion="none">SupportForge-AI-Setup-component.pkg</pkg-ref>
+    <pkg-ref id="com.supportforge.aisetup" version="1.3.0" onConclusion="none">SupportForge-AI-Setup-component.pkg</pkg-ref>
 </installer-gui-script>

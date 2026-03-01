@@ -8,7 +8,7 @@ set -e
 COMPONENT_PKG="flat/SupportForge-AI-Setup-component.pkg"
 FINAL_PKG="SupportForge-AI-Setup.pkg"
 IDENTIFIER="com.supportforge.aisetup"
-VERSION="1.0.0"
+VERSION="1.3.0"
 INSTALL_LOCATION="/"
 
 echo "============================================"
