@@ -291,8 +291,25 @@ fi
 COMPLETED_STEPS+=("$CURRENT_STEP")
 send_progress "$CURRENT_STEP" "Python complete"
 
-# ── Claude Code ───────────────────────────────────────────────────────────
+# ── Docker (check only — Mac users install Docker Desktop manually) ────────
+# Docker check runs before Claude Code so all prereqs are confirmed first.
 CURRENT_STEP=7
+if command -v docker &> /dev/null; then
+    V=$(get_version docker)
+    log_success "Docker already installed ($V)"
+    add_result "docker" "OK" "$V" "false"
+    TOOL_STATUS_MAP["docker"]="{\"status\": \"success\", \"version\": \"$V\"}"
+else
+    log_info "Docker not found — install Docker Desktop from docker.com/products/docker-desktop"
+    add_result "docker" "skipped" "null" "false"
+    TOOL_STATUS_MAP["docker"]="{\"status\": \"skipped\", \"version\": null}"
+fi
+COMPLETED_STEPS+=("$CURRENT_STEP")
+send_progress "$CURRENT_STEP" "Docker complete"
+
+# ── Claude Code ───────────────────────────────────────────────────────────
+# Claude Code installs last among tools (before skills) — requires Node.js/npm from step 4.
+CURRENT_STEP=8
 TOOL_STATUS_MAP["claude"]="{\"status\": \"installing\", \"version\": null}"
 send_progress "$CURRENT_STEP" "Checking Claude Code..."
 log_info "Checking Claude Code..."
@@ -317,20 +334,6 @@ else
 fi
 COMPLETED_STEPS+=("$CURRENT_STEP")
 send_progress "$CURRENT_STEP" "Claude Code complete"
-
-# ── Docker (check only, not installed) ───────────────────────────────────
-CURRENT_STEP=8
-if command -v docker &> /dev/null; then
-    V=$(get_version docker)
-    log_success "Docker already installed ($V)"
-    add_result "docker" "OK" "$V" "false"
-    TOOL_STATUS_MAP["docker"]="{\"status\": \"success\", \"version\": \"$V\"}"
-else
-    add_result "docker" "skipped" "null" "false"
-    TOOL_STATUS_MAP["docker"]="{\"status\": \"skipped\", \"version\": null}"
-fi
-COMPLETED_STEPS+=("$CURRENT_STEP")
-send_progress "$CURRENT_STEP" "Docker complete"
 
 # ── Skills Install ────────────────────────────────────────────────────────
 # Skills step runs outside set -e scope so a clone failure doesn't abort the whole script.

@@ -383,8 +383,62 @@ if ($wslStatus -like '*Default Version: 2*' -or $wslStatus -like '*WSL version: 
 }
 Send-Progress -CurrentStep $currentStep -CompletedSteps $completedSteps -CurrentAction "WSL2 complete" -ToolStatus $toolStatus -Errors $results.errors
 
-# ===== CLAUDE CODE =====
+# ===== DOCKER DESKTOP =====
+# Docker is a prereq — install before Claude Code so all dependencies are in place first.
 $currentStep = 7
+Send-Progress -CurrentStep $currentStep -CompletedSteps $completedSteps -CurrentAction "Checking Docker Desktop..." -ToolStatus $toolStatus -Errors $results.errors
+Write-Step 'Checking Docker Desktop...'
+if ($SkipDocker) {
+    Write-Info 'Docker installation skipped (--SkipDocker flag)'
+    $results.results.docker = @{ status = 'SKIPPED'; version = $null; installed = $false }
+    $toolStatus['docker'] = @{ status = 'skipped'; version = $null }
+    $completedSteps += 7
+} elseif (Get-Command docker -ErrorAction SilentlyContinue) {
+    $version = Get-InstalledVersion -Command 'docker'
+    Write-Success "Docker already installed ($version)"
+    $results.results.docker = @{ status = 'OK'; version = $version; installed = $false }
+    $toolStatus['docker'] = @{ status = 'success'; version = $version }
+    $completedSteps += 7
+} else {
+    if ($results.results.wsl2.restart_required) {
+        Write-Info 'Docker installation skipped (WSL2 restart required first)'
+        $results.results.docker = @{ status = 'SKIPPED'; version = $null; installed = $false }
+        $toolStatus['docker'] = @{ status = 'skipped'; version = $null; message = 'WSL2 restart required first' }
+        $completedSteps += 7
+    } else {
+        Write-Info 'Installing Docker Desktop...'
+        $toolStatus['docker'] = @{ status = 'installing'; version = $null }
+        Send-Progress -CurrentStep $currentStep -CompletedSteps $completedSteps -CurrentAction "Installing Docker Desktop..." -ToolStatus $toolStatus -Errors $results.errors
+        try {
+            choco install docker-desktop -y --no-progress
+            Refresh-EnvironmentPath
+            # HIGH-4: Docker Desktop takes 60-120 seconds to fully initialize after install.
+            # Running `docker version` immediately will fail because the daemon is not yet running.
+            # Instead, verify that the binary was placed on disk at the known install path.
+            $dockerExe = "C:\Program Files\Docker\Docker\resources\bin\docker.exe"
+            if (Test-Path $dockerExe) {
+                Write-Success "Docker Desktop installed successfully (requires restart to fully initialize)"
+                $results.results.docker = @{ status = 'OK'; version = 'installed'; installed = $true }
+                $toolStatus['docker'] = @{ status = 'success'; version = 'installed' }
+                $completedSteps += 7
+                Write-Info 'Docker Desktop requires manual start from Start Menu'
+            } else {
+                Write-Warning "Docker Desktop binary not found at expected path"
+                throw 'Docker Desktop installation verification failed'
+            }
+        } catch {
+            Write-Failure "Docker Desktop install failed: $_"
+            Add-Error -Tool 'docker' -Message $_.Exception.Message -Fix "Ensure WSL2 is installed and working. Manual download: docker.com/products/docker-desktop"
+            $results.results.docker = @{ status = 'ERROR'; version = $null; installed = $false }
+            $toolStatus['docker'] = @{ status = 'error'; version = $null; error = $_.Exception.Message }
+        }
+    }
+}
+Send-Progress -CurrentStep $currentStep -CompletedSteps $completedSteps -CurrentAction "Docker complete" -ToolStatus $toolStatus -Errors $results.errors
+
+# ===== CLAUDE CODE =====
+# Claude Code installs last among the tools (before skills) — requires Node.js/npm from step 4.
+$currentStep = 8
 Send-Progress -CurrentStep $currentStep -CompletedSteps $completedSteps -CurrentAction "Checking Claude Code..." -ToolStatus $toolStatus -Errors $results.errors
 Write-Step 'Checking Claude Code CLI...'
 if (Get-Command claude -ErrorAction SilentlyContinue) {
@@ -392,7 +446,7 @@ if (Get-Command claude -ErrorAction SilentlyContinue) {
     Write-Success "Claude Code already installed ($version)"
     $results.results.claude = @{ status = 'OK'; version = $version; installed = $false }
     $toolStatus['claude'] = @{ status = 'success'; version = $version }
-    $completedSteps += 7
+    $completedSteps += 8
 } else {
     Write-Info 'Installing Claude Code via npm...'
     $toolStatus['claude'] = @{ status = 'installing'; version = $null }
@@ -416,7 +470,7 @@ if (Get-Command claude -ErrorAction SilentlyContinue) {
             Write-Success "Claude Code installed ($version)"
             $results.results.claude = @{ status = 'OK'; version = $version; installed = $true }
             $toolStatus['claude'] = @{ status = 'success'; version = $version }
-            $completedSteps += 7
+            $completedSteps += 8
         } else {
             throw 'Claude Code installation verification failed'
         }
@@ -428,58 +482,6 @@ if (Get-Command claude -ErrorAction SilentlyContinue) {
     }
 }
 Send-Progress -CurrentStep $currentStep -CompletedSteps $completedSteps -CurrentAction "Claude Code complete" -ToolStatus $toolStatus -Errors $results.errors
-
-# ===== DOCKER DESKTOP =====
-$currentStep = 8
-Send-Progress -CurrentStep $currentStep -CompletedSteps $completedSteps -CurrentAction "Checking Docker Desktop..." -ToolStatus $toolStatus -Errors $results.errors
-Write-Step 'Checking Docker Desktop...'
-if ($SkipDocker) {
-    Write-Info 'Docker installation skipped (--SkipDocker flag)'
-    $results.results.docker = @{ status = 'SKIPPED'; version = $null; installed = $false }
-    $toolStatus['docker'] = @{ status = 'skipped'; version = $null }
-    $completedSteps += 8
-} elseif (Get-Command docker -ErrorAction SilentlyContinue) {
-    $version = Get-InstalledVersion -Command 'docker'
-    Write-Success "Docker already installed ($version)"
-    $results.results.docker = @{ status = 'OK'; version = $version; installed = $false }
-    $toolStatus['docker'] = @{ status = 'success'; version = $version }
-    $completedSteps += 8
-} else {
-    if ($results.results.wsl2.restart_required) {
-        Write-Info 'Docker installation skipped (WSL2 restart required first)'
-        $results.results.docker = @{ status = 'SKIPPED'; version = $null; installed = $false }
-        $toolStatus['docker'] = @{ status = 'skipped'; version = $null; message = 'WSL2 restart required first' }
-        $completedSteps += 8
-    } else {
-        Write-Info 'Installing Docker Desktop...'
-        $toolStatus['docker'] = @{ status = 'installing'; version = $null }
-        Send-Progress -CurrentStep $currentStep -CompletedSteps $completedSteps -CurrentAction "Installing Docker Desktop..." -ToolStatus $toolStatus -Errors $results.errors
-        try {
-            choco install docker-desktop -y --no-progress
-            Refresh-EnvironmentPath
-            # HIGH-4: Docker Desktop takes 60-120 seconds to fully initialize after install.
-            # Running `docker version` immediately will fail because the daemon is not yet running.
-            # Instead, verify that the binary was placed on disk at the known install path.
-            $dockerExe = "C:\Program Files\Docker\Docker\resources\bin\docker.exe"
-            if (Test-Path $dockerExe) {
-                Write-Success "Docker Desktop installed successfully (requires restart to fully initialize)"
-                $results.results.docker = @{ status = 'OK'; version = 'installed'; installed = $true }
-                $toolStatus['docker'] = @{ status = 'success'; version = 'installed' }
-                $completedSteps += 8
-                Write-Info 'Docker Desktop requires manual start from Start Menu'
-            } else {
-                Write-Warning "Docker Desktop binary not found at expected path"
-                throw 'Docker Desktop installation verification failed'
-            }
-        } catch {
-            Write-Failure "Docker Desktop install failed: $_"
-            Add-Error -Tool 'docker' -Message $_.Exception.Message -Fix "Ensure WSL2 is installed and working. Manual download: docker.com/products/docker-desktop"
-            $results.results.docker = @{ status = 'ERROR'; version = $null; installed = $false }
-            $toolStatus['docker'] = @{ status = 'error'; version = $null; error = $_.Exception.Message }
-        }
-    }
-}
-Send-Progress -CurrentStep $currentStep -CompletedSteps $completedSteps -CurrentAction "Docker complete" -ToolStatus $toolStatus -Errors $results.errors
 
 # ===== SKILLS INSTALL =====
 $currentStep = 9
