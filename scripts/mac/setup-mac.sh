@@ -54,10 +54,13 @@ echo "  Session: $SESSION_ID"
 echo "=================================================="
 echo ""
 
-declare -A TOOL_RESULTS
-declare -A TOOL_STATUS_MAP
+# bash 3.2 compatible — no associative arrays
 CURRENT_STEP=0
 COMPLETED_STEPS=()
+
+# Tool result strings (one var per tool)
+TR_homebrew="" TR_git="" TR_github_cli="" TR_nodejs="" TR_python="" TR_claude="" TR_docker="" TR_skills=""
+TS_homebrew="" TS_git="" TS_github_cli="" TS_nodejs="" TS_python="" TS_claude="" TS_docker="" TS_skills=""
 
 log_info()    { echo -e "${BLUE}[INFO]${NC} $1"; }
 log_success() { echo -e "${GREEN}[OK]${NC} $1"; }
@@ -65,11 +68,23 @@ log_error()   { echo -e "${RED}[ERR]${NC} $1"; ERRORS+=("$1"); }
 
 add_result() {
     local tool=$1 status=$2 version=$3 installed=$4
+    local val
     if [[ "$version" == "null" ]]; then
-        TOOL_RESULTS[$tool]="{\"status\": \"$status\", \"version\": null, \"installed\": $installed}"
+        val="{\"status\": \"$status\", \"version\": null, \"installed\": $installed}"
     else
-        TOOL_RESULTS[$tool]="{\"status\": \"$status\", \"version\": \"$version\", \"installed\": $installed}"
+        val="{\"status\": \"$status\", \"version\": \"$version\", \"installed\": $installed}"
     fi
+    eval "TR_${tool}=\"\$val\""
+}
+
+set_tool_status() {
+    local tool=$1 val=$2
+    eval "TS_${tool}=\"\$val\""
+}
+
+get_tool_status() {
+    local tool=$1
+    eval "echo \"\${TS_${tool}}\""
 }
 
 get_version() {
@@ -84,14 +99,16 @@ get_version() {
     esac
 }
 
-# Build tool_status JSON from TOOL_STATUS_MAP
+# Build tool_status JSON from per-tool TS_ variables
 build_tool_status_json() {
     local json="{"
     local first=true
     for key in homebrew git github_cli nodejs python claude docker skills; do
-        [[ -z "${TOOL_STATUS_MAP[$key]}" ]] && continue
+        local val
+        val=$(get_tool_status "$key")
+        [[ -z "$val" ]] && continue
         $first || json+=","
-        json+="\"$key\": ${TOOL_STATUS_MAP[$key]}"
+        json+="\"$key\": $val"
         first=false
     done
     json+="}"
@@ -153,7 +170,7 @@ send_progress() {
 
 # ── Homebrew ──────────────────────────────────────────────────────────────
 CURRENT_STEP=1
-TOOL_STATUS_MAP["homebrew"]="{\"status\": \"installing\", \"version\": null}"
+set_tool_status "homebrew" "{\"status\": \"installing\", \"version\": null}"
 send_progress "$CURRENT_STEP" "Checking Homebrew..."
 log_info "Checking Homebrew..."
 
@@ -161,7 +178,7 @@ if command -v brew &> /dev/null; then
     V=$(get_version brew)
     log_success "Homebrew installed ($V)"
     add_result "homebrew" "OK" "$V" "false"
-    TOOL_STATUS_MAP["homebrew"]="{\"status\": \"success\", \"version\": \"$V\"}"
+    set_tool_status "homebrew" "{\"status\": \"success\", \"version\": \"$V\"}"
 else
     log_info "Installing Homebrew..."
     send_progress "$CURRENT_STEP" "Installing Homebrew..."
@@ -171,12 +188,12 @@ else
         V=$(get_version brew)
         log_success "Homebrew installed ($V)"
         add_result "homebrew" "OK" "$V" "true"
-        TOOL_STATUS_MAP["homebrew"]="{\"status\": \"success\", \"version\": \"$V\"}"
+        set_tool_status "homebrew" "{\"status\": \"success\", \"version\": \"$V\"}"
     else
         log_error "Homebrew install failed"
         add_result "homebrew" "ERR" "null" "false"
         add_error_structured "homebrew" "Homebrew install failed" "Visit brew.sh and run the installer manually"
-        TOOL_STATUS_MAP["homebrew"]="{\"status\": \"error\", \"version\": null, \"error\": \"Install failed\"}"
+        set_tool_status "homebrew" "{\"status\": \"error\", \"version\": null, \"error\": \"Install failed\"}"
     fi
 fi
 export PATH="$HOMEBREW_PREFIX/bin:$PATH"
@@ -185,7 +202,7 @@ send_progress "$CURRENT_STEP" "Homebrew complete"
 
 # ── Git ───────────────────────────────────────────────────────────────────
 CURRENT_STEP=2
-TOOL_STATUS_MAP["git"]="{\"status\": \"installing\", \"version\": null}"
+set_tool_status "git" "{\"status\": \"installing\", \"version\": null}"
 send_progress "$CURRENT_STEP" "Checking Git..."
 log_info "Checking Git..."
 
@@ -193,18 +210,18 @@ if command -v git &> /dev/null; then
     V=$(get_version git)
     log_success "Git installed ($V)"
     add_result "git" "OK" "$V" "false"
-    TOOL_STATUS_MAP["git"]="{\"status\": \"success\", \"version\": \"$V\"}"
+    set_tool_status "git" "{\"status\": \"success\", \"version\": \"$V\"}"
 else
     send_progress "$CURRENT_STEP" "Installing Git..."
     if brew install git && V=$(get_version git); then
         log_success "Git installed ($V)"
         add_result "git" "OK" "$V" "true"
-        TOOL_STATUS_MAP["git"]="{\"status\": \"success\", \"version\": \"$V\"}"
+        set_tool_status "git" "{\"status\": \"success\", \"version\": \"$V\"}"
     else
         log_error "Git install failed"
         add_result "git" "ERR" "null" "false"
         add_error_structured "git" "Git install failed" "Try: brew install git"
-        TOOL_STATUS_MAP["git"]="{\"status\": \"error\", \"version\": null, \"error\": \"Install failed\"}"
+        set_tool_status "git" "{\"status\": \"error\", \"version\": null, \"error\": \"Install failed\"}"
     fi
 fi
 COMPLETED_STEPS+=("$CURRENT_STEP")
@@ -212,7 +229,7 @@ send_progress "$CURRENT_STEP" "Git complete"
 
 # ── GitHub CLI ────────────────────────────────────────────────────────────
 CURRENT_STEP=3
-TOOL_STATUS_MAP["github_cli"]="{\"status\": \"installing\", \"version\": null}"
+set_tool_status "github_cli" "{\"status\": \"installing\", \"version\": null}"
 send_progress "$CURRENT_STEP" "Checking GitHub CLI..."
 log_info "Checking GitHub CLI..."
 
@@ -220,18 +237,18 @@ if command -v gh &> /dev/null; then
     V=$(get_version gh)
     log_success "GitHub CLI installed ($V)"
     add_result "github_cli" "OK" "$V" "false"
-    TOOL_STATUS_MAP["github_cli"]="{\"status\": \"success\", \"version\": \"$V\"}"
+    set_tool_status "github_cli" "{\"status\": \"success\", \"version\": \"$V\"}"
 else
     send_progress "$CURRENT_STEP" "Installing GitHub CLI..."
     if brew install gh && V=$(get_version gh); then
         log_success "GitHub CLI installed ($V)"
         add_result "github_cli" "OK" "$V" "true"
-        TOOL_STATUS_MAP["github_cli"]="{\"status\": \"success\", \"version\": \"$V\"}"
+        set_tool_status "github_cli" "{\"status\": \"success\", \"version\": \"$V\"}"
     else
         log_error "GitHub CLI install failed"
         add_result "github_cli" "ERR" "null" "false"
         add_error_structured "github_cli" "GitHub CLI install failed" "Try: brew install gh"
-        TOOL_STATUS_MAP["github_cli"]="{\"status\": \"error\", \"version\": null, \"error\": \"Install failed\"}"
+        set_tool_status "github_cli" "{\"status\": \"error\", \"version\": null, \"error\": \"Install failed\"}"
     fi
 fi
 COMPLETED_STEPS+=("$CURRENT_STEP")
@@ -239,7 +256,7 @@ send_progress "$CURRENT_STEP" "GitHub CLI complete"
 
 # ── Node.js ───────────────────────────────────────────────────────────────
 CURRENT_STEP=4
-TOOL_STATUS_MAP["nodejs"]="{\"status\": \"installing\", \"version\": null}"
+set_tool_status "nodejs" "{\"status\": \"installing\", \"version\": null}"
 send_progress "$CURRENT_STEP" "Checking Node.js..."
 log_info "Checking Node.js..."
 
@@ -247,18 +264,18 @@ if command -v node &> /dev/null; then
     V=$(get_version node)
     log_success "Node.js installed ($V)"
     add_result "nodejs" "OK" "$V" "false"
-    TOOL_STATUS_MAP["nodejs"]="{\"status\": \"success\", \"version\": \"$V\"}"
+    set_tool_status "nodejs" "{\"status\": \"success\", \"version\": \"$V\"}"
 else
     send_progress "$CURRENT_STEP" "Installing Node.js..."
     if brew install node && V=$(get_version node); then
         log_success "Node.js installed ($V)"
         add_result "nodejs" "OK" "$V" "true"
-        TOOL_STATUS_MAP["nodejs"]="{\"status\": \"success\", \"version\": \"$V\"}"
+        set_tool_status "nodejs" "{\"status\": \"success\", \"version\": \"$V\"}"
     else
         log_error "Node.js install failed"
         add_result "nodejs" "ERR" "null" "false"
         add_error_structured "nodejs" "Node.js install failed" "Try: brew install node OR download from nodejs.org"
-        TOOL_STATUS_MAP["nodejs"]="{\"status\": \"error\", \"version\": null, \"error\": \"Install failed\"}"
+        set_tool_status "nodejs" "{\"status\": \"error\", \"version\": null, \"error\": \"Install failed\"}"
     fi
 fi
 COMPLETED_STEPS+=("$CURRENT_STEP")
@@ -266,7 +283,7 @@ send_progress "$CURRENT_STEP" "Node.js complete"
 
 # ── Python ────────────────────────────────────────────────────────────────
 CURRENT_STEP=5
-TOOL_STATUS_MAP["python"]="{\"status\": \"installing\", \"version\": null}"
+set_tool_status "python" "{\"status\": \"installing\", \"version\": null}"
 send_progress "$CURRENT_STEP" "Checking Python..."
 log_info "Checking Python..."
 
@@ -274,18 +291,18 @@ if command -v python3 &> /dev/null; then
     V=$(get_version python)
     log_success "Python installed ($V)"
     add_result "python" "OK" "$V" "false"
-    TOOL_STATUS_MAP["python"]="{\"status\": \"success\", \"version\": \"$V\"}"
+    set_tool_status "python" "{\"status\": \"success\", \"version\": \"$V\"}"
 else
     send_progress "$CURRENT_STEP" "Installing Python..."
     if brew install python@3.12 && V=$(python3.12 --version 2>/dev/null | awk '{print $2}'); then
         log_success "Python installed ($V)"
         add_result "python" "OK" "$V" "true"
-        TOOL_STATUS_MAP["python"]="{\"status\": \"success\", \"version\": \"$V\"}"
+        set_tool_status "python" "{\"status\": \"success\", \"version\": \"$V\"}"
     else
         log_error "Python install failed"
         add_result "python" "ERR" "null" "false"
         add_error_structured "python" "Python install failed" "Try: brew install python@3.12"
-        TOOL_STATUS_MAP["python"]="{\"status\": \"error\", \"version\": null, \"error\": \"Install failed\"}"
+        set_tool_status "python" "{\"status\": \"error\", \"version\": null, \"error\": \"Install failed\"}"
     fi
 fi
 COMPLETED_STEPS+=("$CURRENT_STEP")
@@ -298,11 +315,11 @@ if command -v docker &> /dev/null; then
     V=$(get_version docker)
     log_success "Docker already installed ($V)"
     add_result "docker" "OK" "$V" "false"
-    TOOL_STATUS_MAP["docker"]="{\"status\": \"success\", \"version\": \"$V\"}"
+    set_tool_status "docker" "{\"status\": \"success\", \"version\": \"$V\"}"
 else
     log_info "Docker not found — install Docker Desktop from docker.com/products/docker-desktop"
     add_result "docker" "skipped" "null" "false"
-    TOOL_STATUS_MAP["docker"]="{\"status\": \"skipped\", \"version\": null}"
+    set_tool_status "docker" "{\"status\": \"skipped\", \"version\": null}"
 fi
 COMPLETED_STEPS+=("$CURRENT_STEP")
 send_progress "$CURRENT_STEP" "Docker complete"
@@ -310,7 +327,7 @@ send_progress "$CURRENT_STEP" "Docker complete"
 # ── Claude Code ───────────────────────────────────────────────────────────
 # Claude Code installs last among tools (before skills) — requires Node.js/npm from step 4.
 CURRENT_STEP=8
-TOOL_STATUS_MAP["claude"]="{\"status\": \"installing\", \"version\": null}"
+set_tool_status "claude" "{\"status\": \"installing\", \"version\": null}"
 send_progress "$CURRENT_STEP" "Checking Claude Code..."
 log_info "Checking Claude Code..."
 
@@ -318,18 +335,18 @@ if command -v claude &> /dev/null; then
     V=$(get_version claude)
     log_success "Claude Code installed ($V)"
     add_result "claude" "OK" "$V" "false"
-    TOOL_STATUS_MAP["claude"]="{\"status\": \"success\", \"version\": \"$V\"}"
+    set_tool_status "claude" "{\"status\": \"success\", \"version\": \"$V\"}"
 else
     send_progress "$CURRENT_STEP" "Installing Claude Code..."
     if npm install -g @anthropic-ai/claude-code && V=$(get_version claude); then
         log_success "Claude Code installed ($V)"
         add_result "claude" "OK" "$V" "true"
-        TOOL_STATUS_MAP["claude"]="{\"status\": \"success\", \"version\": \"$V\"}"
+        set_tool_status "claude" "{\"status\": \"success\", \"version\": \"$V\"}"
     else
         log_error "Claude Code install failed"
         add_result "claude" "ERR" "null" "false"
         add_error_structured "claude" "Claude Code install failed" "Ensure Node.js is installed. Try: npm install -g @anthropic-ai/claude-code"
-        TOOL_STATUS_MAP["claude"]="{\"status\": \"error\", \"version\": null, \"error\": \"Install failed\"}"
+        set_tool_status "claude" "{\"status\": \"error\", \"version\": null, \"error\": \"Install failed\"}"
     fi
 fi
 COMPLETED_STEPS+=("$CURRENT_STEP")
@@ -338,7 +355,7 @@ send_progress "$CURRENT_STEP" "Claude Code complete"
 # ── Skills Install ────────────────────────────────────────────────────────
 # Skills step runs outside set -e scope so a clone failure doesn't abort the whole script.
 CURRENT_STEP=9
-TOOL_STATUS_MAP["skills"]="{\"status\": \"installing\", \"version\": null}"
+set_tool_status "skills" "{\"status\": \"installing\", \"version\": null}"
 send_progress "$CURRENT_STEP" "Installing Claude Code skills..."
 log_info "Installing Claude Code skills..."
 
@@ -351,7 +368,7 @@ if ! command -v git &>/dev/null; then
     log_error "git not found — skills install skipped"
     add_result "skills" "ERR" "null" "false"
     add_error_structured "skills" "git not found" "Ensure Git was installed in a previous step"
-    TOOL_STATUS_MAP["skills"]="{\"status\": \"error\", \"version\": null, \"error\": \"git not found\"}"
+    set_tool_status "skills" "{\"status\": \"error\", \"version\": null, \"error\": \"git not found\"}"
 else
     CLONE_SUCCESS=false
     REPO_SLUG=""
@@ -382,7 +399,7 @@ else
             for skill_dir in "$SOURCE_SKILLS"/*/; do
                 skill_name="$(basename "$skill_dir")"
                 SKILL_COUNT=$((SKILL_COUNT + 1))
-                TOOL_STATUS_MAP["skills"]="{\"status\": \"installing\", \"version\": \"Installing $SKILL_COUNT/$SKILL_TOTAL\"}"
+                set_tool_status "skills" "{\"status\": \"installing\", \"version\": \"Installing $SKILL_COUNT/$SKILL_TOTAL\"}"
                 send_progress "$CURRENT_STEP" "Installing skill $SKILL_COUNT/$SKILL_TOTAL: $skill_name"
                 if [ ! -d "$SKILLS_DIR/$skill_name" ]; then
                     cp -r "$skill_dir" "$SKILLS_DIR/$skill_name"
@@ -392,19 +409,19 @@ else
             rm -rf "$CLONE_DIR"
             log_success "$SKILLS_INSTALLED skills installed to $SKILLS_DIR"
             add_result "skills" "OK" "${SKILLS_INSTALLED} skills" "true"
-            TOOL_STATUS_MAP["skills"]="{\"status\": \"success\", \"version\": \"$SKILLS_INSTALLED skills\"}"
+            set_tool_status "skills" "{\"status\": \"success\", \"version\": \"$SKILLS_INSTALLED skills\"}"
             SKILLS_OK=true
         else
             log_error "skills/ directory not found in cloned repo"
             add_result "skills" "ERR" "null" "false"
             add_error_structured "skills" "skills/ directory not found in cloned repo" "Contact perry@support-forge.com"
-            TOOL_STATUS_MAP["skills"]="{\"status\": \"error\", \"version\": null, \"error\": \"skills/ not found\"}"
+            set_tool_status "skills" "{\"status\": \"error\", \"version\": null, \"error\": \"skills/ not found\"}"
         fi
     else
         log_error "Could not clone skills repo. Run 'gh auth login' then re-run this script."
         add_result "skills" "ERR" "null" "false"
         add_error_structured "skills" "Could not clone skills repo" "Run: gh auth login — then re-run: bash setup-mac.sh --skills-repo $SKILLS_REPO_URL"
-        TOOL_STATUS_MAP["skills"]="{\"status\": \"error\", \"version\": null, \"error\": \"Clone failed\"}"
+        set_tool_status "skills" "{\"status\": \"error\", \"version\": null, \"error\": \"Clone failed\"}"
     fi
 fi
 COMPLETED_STEPS+=("$CURRENT_STEP")
@@ -419,10 +436,15 @@ send_progress "11" "Setup complete!" "true"
 
 # ── Write local results JSON ──────────────────────────────────────────────
 RESULTS_JSON="{"
+RESULTS_FIRST=true
 for tool in homebrew git github_cli nodejs python claude docker skills; do
-    [[ -n "${TOOL_RESULTS[$tool]}" ]] && RESULTS_JSON+="\"$tool\": ${TOOL_RESULTS[$tool]},"
+    val=$(eval "echo \"\${TR_${tool}}\"")
+    [[ -z "$val" ]] && continue
+    $RESULTS_FIRST || RESULTS_JSON+=","
+    RESULTS_JSON+="\"$tool\": $val"
+    RESULTS_FIRST=false
 done
-RESULTS_JSON="${RESULTS_JSON%,}}"
+RESULTS_JSON+="}"
 
 ERRORS_JSON="["
 for error in "${ERRORS[@]}"; do
