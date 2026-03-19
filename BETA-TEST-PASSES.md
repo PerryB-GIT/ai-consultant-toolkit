@@ -100,7 +100,7 @@ After testing, please share:
 - Script continues even if one tool fails
 
 ### Need Help?
-- Email: perry.bailes@gmail.com
+- Email: perry@support-forge.com
 - Or just text/call Perry during the party!
 
 ---
@@ -189,7 +189,7 @@ Beta testers who provide exceptional feedback get featured in our:
 
 **Valid:** February 2026
 **Issued By:** AI Consultant Toolkit Team
-**Support:** perry.bailes@gmail.com
+**Support:** perry@support-forge.com
 
 ---
 

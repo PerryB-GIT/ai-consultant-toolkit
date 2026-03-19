@@ -22,7 +22,7 @@
 - [ ] Anthropic API key (console.anthropic.com/settings/keys)
 - [ ] GitHub account (github.com/PerryB-GIT)
 - [ ] AWS account credentials
-- [ ] Google account (perry.bailes@gmail.com)
+- [ ] Google account (perry@support-forge.com)
 - [ ] GCP project access
 
 ### Files to Transfer:

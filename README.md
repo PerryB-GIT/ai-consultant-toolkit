@@ -425,7 +425,7 @@ Built with Claude Sonnet 4.5
 
 - GitHub: https://github.com/PerryB-GIT
 - Website: https://support-forge.com
-- Email: perry.bailes@gmail.com
+- Email: perry@support-forge.com
 
 ---
 
